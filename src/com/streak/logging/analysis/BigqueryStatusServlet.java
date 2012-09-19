@@ -60,6 +60,7 @@ public class BigqueryStatusServlet extends HttpServlet {
 		
 		for (Projects project : projectResponse.getProjects()) {
 			Bigquery.Jobs.List jobsRequest = bigquery.jobs().list(project.getId());
+			jobsRequest.setMaxResults(200L);
       JobList jobsResponse = jobsRequest.execute();
       List<JobList.Jobs> jobs = jobsResponse.getJobs();
       resp.getWriter().println("=== Recent jobs for " + project.getId() + " ===");

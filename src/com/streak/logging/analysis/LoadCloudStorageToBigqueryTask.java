@@ -62,34 +62,34 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 	public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		resp.setContentType("text/plain");
 		
-		MemcacheService memcache = MemcacheServiceFactory.getMemcacheService(AnalysisConstants.MEMCACHE_NAMESPACE); 
-		Long nextBigQueryJobTime = 
-				(Long) memcache.increment(
-						AnalysisConstants.LAST_BIGQUERY_JOB_TIME, AnalysisConstants.LOAD_DELAY_MS, System.currentTimeMillis());
-		
-		long currentTime = System.currentTimeMillis();
-		
-		// The task queue has waited a long time to run us. Go ahead and reset the last job time
-		// to prevent a race.
-		if (currentTime > nextBigQueryJobTime + AnalysisConstants.LOAD_DELAY_MS / 2) {
-			memcache.put(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, currentTime);
-			nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
-		}
-		if (currentTime < nextBigQueryJobTime) {
-			memcache.increment(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, -AnalysisConstants.LOAD_DELAY_MS);
-			
-			String queueName = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.QUEUE_NAME_PARAM);
-			Queue taskQueue = QueueFactory.getQueue(queueName);
-			taskQueue.add(
-					Builder.withUrl(
-							AnalysisUtility.getRequestBaseName(req) + 
-							"/loadCloudStorageToBigquery?" + req.getQueryString())
-						   .method(Method.GET)
-						   .etaMillis(nextBigQueryJobTime));
-			resp.getWriter().println("Rate limiting BigQuery load job - will retry at " + nextBigQueryJobTime);
-			return;
-		}
-		
+//		MemcacheService memcache = MemcacheServiceFactory.getMemcacheService(AnalysisConstants.MEMCACHE_NAMESPACE); 
+//		Long nextBigQueryJobTime = 
+//				(Long) memcache.increment(
+//						AnalysisConstants.LAST_BIGQUERY_JOB_TIME, AnalysisConstants.LOAD_DELAY_MS, System.currentTimeMillis());
+//		
+//		long currentTime = System.currentTimeMillis();
+//		
+//		// The task queue has waited a long time to run us. Go ahead and reset the last job time
+//		// to prevent a race.
+//		if (currentTime > nextBigQueryJobTime + AnalysisConstants.LOAD_DELAY_MS / 2) {
+//			memcache.put(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, currentTime);
+//			nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
+//		}
+//		if (currentTime < nextBigQueryJobTime) {
+//			memcache.increment(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, -AnalysisConstants.LOAD_DELAY_MS);
+//			
+//			String queueName = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.QUEUE_NAME_PARAM);
+//			Queue taskQueue = QueueFactory.getQueue(queueName);
+//			taskQueue.add(
+//					Builder.withUrl(
+//							AnalysisUtility.getRequestBaseName(req) + 
+//							"/loadCloudStorageToBigquery?" + req.getQueryString())
+//						   .method(Method.GET)
+//						   .etaMillis(nextBigQueryJobTime));
+//			resp.getWriter().println("Rate limiting BigQuery load job - will retry at " + nextBigQueryJobTime);
+//			return;
+//		}
+//		
 		String startMsStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.START_MS_PARAM);
 		long startMs = Long.parseLong(startMsStr);
 		
@@ -114,6 +114,27 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 				bucketName, schemaHash, startMs, endMs, requestFactory, urisToProcess, false);
 		resp.getWriter().println("Got " + urisToProcess.size() + " uris to process");
 		if (urisToProcess.isEmpty()) {
+			// TODO Spletart: Could be here - why don't retry!!!
+			int count = 0;
+			long currentTime = System.currentTimeMillis();
+			Long nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
+			String retry = req.getParameter("retry");
+			if (retry != null && !retry.isEmpty())
+			{
+				// OK, I give up now...
+				return;
+			}
+			// retrying...
+			String queueName = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.QUEUE_NAME_PARAM);
+			Queue taskQueue = QueueFactory.getQueue(queueName);
+			taskQueue.add(
+					Builder.withUrl(
+							AnalysisUtility.getRequestBaseName(req) + 
+							"/loadCloudStorageToBigquery?" + req.getQueryString() + "&retry=" + count++)
+						   .method(Method.GET)
+						   .etaMillis(nextBigQueryJobTime));
+			resp.getWriter().println("No uris to process from fetchCloudStorageUris - will retry at " + nextBigQueryJobTime);
+
 			return;
 		}
 		
@@ -127,6 +148,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 				.build();
 		
 		Job job = new Job();
+		job.setId(startMsStr); // Spletart. Just in case. Set Id to disallow duplicates...http://stackoverflow.com/questions/11071916/bigquery-double-imports
 		JobConfiguration config = new JobConfiguration();
 		JobConfigurationLoad loadConfig = new JobConfigurationLoad();
 		
