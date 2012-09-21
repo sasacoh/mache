@@ -16,45 +16,25 @@
 
 package com.streak.logging.analysis;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.nio.channels.Channels;
-import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.google.appengine.api.files.AppEngineFile;
-import com.google.appengine.api.files.FileService;
-import com.google.appengine.api.files.FileServiceFactory;
-import com.google.appengine.api.files.FileWriteChannel;
-import com.google.appengine.api.files.FinalizationException;
-import com.google.appengine.api.files.GSFileOptions.GSFileOptionsBuilder;
-import com.google.appengine.api.files.LockException;
 import com.google.appengine.api.log.LogQuery;
 import com.google.appengine.api.log.LogService;
+import com.google.appengine.api.log.LogService.LogLevel;
 import com.google.appengine.api.log.LogServiceFactory;
 import com.google.appengine.api.log.RequestLogs;
-import com.google.appengine.api.log.LogService.LogLevel;
-import com.google.appengine.api.memcache.MemcacheService;
-import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
 
 public class StoreLogsInCloudStorageTask extends HttpServlet {
-	// Batch writes so that they're at least FILE_BUFFER_LIMIT bytes
-	private static final int FILE_BUFFER_LIMIT = 100000;
-
-	// Reopen file every OPEN_MILLIS_LIMIT ms
-	private static final int OPEN_MILLIS_LIMIT = 20000;
-
 	public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		resp.setContentType("text/plain");
 
@@ -104,30 +84,11 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		}
 
 		String fileKey = AnalysisUtility.createLogKey(schemaHash, startMs, endMs);
-		String schemaKey = AnalysisUtility.createSchemaKey(schemaHash, startMs, endMs);
-
-		FileService fileService = FileServiceFactory.getFileService();
-		GSFileOptionsBuilder optionsBuilder = new GSFileOptionsBuilder()
-		.setBucket(bucketName)
-		.setKey(fileKey)
-		.setAcl("project-private");
-		AppEngineFile logsFile = fileService.createNewGSFile(optionsBuilder.build());
-		long lastOpenMillis = System.currentTimeMillis();
-		FileWriteChannel logsChannel = fileService.openWriteChannel(logsFile, true);
-		PrintWriter logsWriter = new PrintWriter(Channels.newWriter(logsChannel, "UTF8"));
+		
+		FancyFileWriter writer = new FancyFileWriter(bucketName, fileKey);
 		Iterable<RequestLogs> logs = ls.fetch(lq);
 
-		// Avoid scientific notation output
-		NumberFormat nf = NumberFormat.getInstance();
-		nf.setGroupingUsed(false);
-		nf.setParseIntegerOnly(false);
-		nf.setMinimumFractionDigits(1);
-		nf.setMaximumFractionDigits(30);
-		nf.setMinimumIntegerDigits(1);
-		nf.setMaximumIntegerDigits(30);
-
 		int resultsCount = 0;
-		StringBuffer sb = new StringBuffer();
 		for (RequestLogs log : logs) {
 			// filter logs
 			if (exporterSet.skipLog(log)) {
@@ -139,7 +100,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 				exporter.processLog(log);
 				while (currentOffset < exporterStartOffset + exporter.getFieldCount()) {
 					if (currentOffset > 0) {
-						sb.append(",");
+						writer.append(",");
 					}
 					Object fieldValue = exporter.getField(fieldNames.get(currentOffset));
 					if (fieldValue == null) {
@@ -148,38 +109,16 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 								" didn't return field for " + fieldNames.get(currentOffset));
 					}
 
-					// These strings have been interned so == works for comparison
-					if ("string" == fieldTypes.get(currentOffset)) {
-						sb.append(AnalysisUtility.escapeAndQuoteField((String) fieldValue));
-					} else if ("float" == fieldTypes.get(currentOffset)) {
-						sb.append(nf.format(fieldValue));
-					} else {
-						sb.append(fieldValue);
-					}
+					writer.append(AnalysisUtility.formatCsvValue(fieldValue, fieldTypes.get(currentOffset)));
 					currentOffset++;
 				}
 				exporterStartOffset += exporter.getFieldCount();
 			}
-			sb.append("\n");
-			if (System.currentTimeMillis() - lastOpenMillis > OPEN_MILLIS_LIMIT) {
-				logsWriter.close();
-				logsChannel = fileService.openWriteChannel(logsFile, true);
-				logsWriter = new PrintWriter(Channels.newWriter(logsChannel, "UTF8"));
-				lastOpenMillis = System.currentTimeMillis();
-			}
-			if (sb.length() > FILE_BUFFER_LIMIT) {
-				logsWriter.print(sb);
-				sb.delete(0,  sb.length());
-			}
+			writer.append("\n");
+			
 			resultsCount++;
 		}
-		if (sb.length() > 0) {
-			logsWriter.print(sb);
-			sb.delete(0,  sb.length());
-		}
-		logsWriter.close();
-		logsChannel.closeFinally();
-
+		writer.closeFinally();
 		return "Saved " + resultsCount + " logs to gs://" + bucketName + "/" + fileKey;
 	}
 }

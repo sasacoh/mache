@@ -16,9 +16,7 @@
 
 package com.streak.logging.analysis;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,12 +42,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.appengine.api.blobstore.BlobKey;
 import com.google.appengine.api.blobstore.BlobstoreService;
 import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
-import com.google.appengine.api.files.AppEngineFile;
-import com.google.appengine.api.files.FileReadChannel;
-import com.google.appengine.api.files.FileService;
-import com.google.appengine.api.files.FileServiceFactory;
-import com.google.appengine.api.memcache.MemcacheService;
-import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
@@ -62,6 +54,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 	public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		resp.setContentType("text/plain");
 		
+//<<<<<<< HEAD
 //		MemcacheService memcache = MemcacheServiceFactory.getMemcacheService(AnalysisConstants.MEMCACHE_NAMESPACE); 
 //		Long nextBigQueryJobTime = 
 //				(Long) memcache.increment(
@@ -90,29 +83,75 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 //			return;
 //		}
 //		
-		String startMsStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.START_MS_PARAM);
-		long startMs = Long.parseLong(startMsStr);
-		
-		String endMsStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.END_MS_PARAM);
-		long endMs = Long.parseLong(endMsStr);
+//		String startMsStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.START_MS_PARAM);
+//		long startMs = Long.parseLong(startMsStr);
+//		
+//		String endMsStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.END_MS_PARAM);
+//		long endMs = Long.parseLong(endMsStr);
+//=======
+//		MemcacheService memcache = MemcacheServiceFactory.getMemcacheService(AnalysisConstants.MEMCACHE_NAMESPACE); 
+//		Long nextBigQueryJobTime = 
+//				(Long) memcache.increment(
+//						AnalysisConstants.LAST_BIGQUERY_JOB_TIME, AnalysisConstants.LOAD_DELAY_MS, System.currentTimeMillis());
+//		
+//		long currentTime = System.currentTimeMillis();
+//		
+//		// The task queue has waited a long time to run us. Go ahead and reset the last job time
+//		// to prevent a race.
+//		if (currentTime > nextBigQueryJobTime + AnalysisConstants.LOAD_DELAY_MS / 2) {
+//			memcache.put(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, currentTime);
+//			nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
+//		}
+//		if (currentTime < nextBigQueryJobTime) {
+//			memcache.increment(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, -AnalysisConstants.LOAD_DELAY_MS);
+//			
+//			String queueName = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.QUEUE_NAME_PARAM);
+//			Queue taskQueue = QueueFactory.getQueue(queueName);
+//			taskQueue.add(
+//					Builder.withUrl(
+//							AnalysisUtility.getRequestBaseName(req) + 
+//							"/loadCloudStorageToBigquery?" + req.getQueryString())
+//						   .method(Method.GET)
+//						   .etaMillis(nextBigQueryJobTime));
+//			resp.getWriter().println("Rate limiting BigQuery load job - will retry at " + nextBigQueryJobTime);
+//			return;
+//		}
+//>>>>>>> upstream/master
 		
 		String bucketName = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BUCKET_NAME_PARAM);
-		String bigqueryProjectId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_PROJECT_ID_PARAM);	
-		String bigqueryDatasetId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_DATASET_ID_PARAM);
-		String bigqueryTableId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
-		
-		String exporterSetClassStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM);
-		BigqueryFieldExporterSet exporterSet = AnalysisUtility.instantiateExporterSet(exporterSetClassStr);		
-		String schemaHash = AnalysisUtility.computeSchemaHash(exporterSet);
-		
 		
 		AppIdentityCredential credential = new AppIdentityCredential(AnalysisConstants.SCOPES);
 		HttpRequestFactory requestFactory = HTTP_TRANSPORT.createRequestFactory(credential);
 		
 		List<String> urisToProcess = new ArrayList<String>();
-		AnalysisUtility.fetchCloudStorageUris(
-				bucketName, schemaHash, startMs, endMs, requestFactory, urisToProcess, false);
+		
+		String schemaBaseUri;
+		String startMsStr = req.getParameter(AnalysisConstants.START_MS_PARAM);	
+		// Logs
+		if (AnalysisUtility.areParametersValid(startMsStr)) {
+			long startMs = Long.parseLong(startMsStr);
+			
+			String endMsStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.END_MS_PARAM);
+			long endMs = Long.parseLong(endMsStr);
+			String exporterSetClassStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM);
+			BigqueryFieldExporterSet exporterSet = AnalysisUtility.instantiateExporterSet(exporterSetClassStr);		
+			String schemaHash = AnalysisUtility.computeSchemaHash(exporterSet);
+			AnalysisUtility.fetchCloudStorageLogUris(
+					bucketName, schemaHash, startMs, endMs, requestFactory, urisToProcess, false);
+			schemaBaseUri = urisToProcess.get(0);
+		// Datastore
+		} else {
+			String cloudStoragePathBase = req.getParameter(AnalysisConstants.CLOUD_STORAGE_PATH_BASE_PARAM);
+			String cloudStoragePathBaseEnd = cloudStoragePathBase.substring(0, cloudStoragePathBase.length() - 1) + (char) (cloudStoragePathBase.charAt(cloudStoragePathBase.length() - 1) + 1);
+			AnalysisUtility.fetchCloudStorageUris(bucketName, cloudStoragePathBase, cloudStoragePathBaseEnd, requestFactory, urisToProcess, false);
+			schemaBaseUri = "gs://" + bucketName + "/" + cloudStoragePathBase;
+		}
 		resp.getWriter().println("Got " + urisToProcess.size() + " uris to process");
+		
+		String bigqueryProjectId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_PROJECT_ID_PARAM);	
+		String bigqueryDatasetId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_DATASET_ID_PARAM);
+		String bigqueryTableId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
+		
 		if (urisToProcess.isEmpty()) {
 			// TODO Spletart: Could be here - why don't retry!!!
 			int count = 0;
@@ -156,7 +195,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		
 		TableSchema schema = new TableSchema();
 		// TODO(frew): Support for multiple schemas?
-		loadLogsSchema(urisToProcess.get(0), schema);
+		loadSchema(schemaBaseUri, schema);
 		loadConfig.setSchema(schema);
 		
 		TableReference table = new TableReference();
@@ -175,25 +214,14 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		resp.getWriter().println("Successfully started job " + ref);
 	}
 	
-	private void loadLogsSchema(String fileUri, TableSchema schema) throws IOException  {
+	private void loadSchema(String fileUri, TableSchema schema) throws IOException  {
 		// Hack(frew): Move to AnalysisUtility
 		String schemaFileUri = fileUri + ".schema";
 		String schemaFileName = "/gs/" + schemaFileUri.substring(schemaFileUri.indexOf("//") + 2);
 		BlobstoreService blobstoreService = BlobstoreServiceFactory.getBlobstoreService();
 		BlobKey key = blobstoreService.createGsBlobKey(schemaFileName);
 		
-		FileService fileService = FileServiceFactory.getFileService();
-		AppEngineFile schemaFile = new AppEngineFile(schemaFileName);
-		FileReadChannel readChannel = fileService.openReadChannel(schemaFile, false);
-		BufferedReader reader = new BufferedReader(Channels.newReader(readChannel, "UTF8"));
-		String schemaLine;
-		try {
-			schemaLine = reader.readLine().trim();
-		} catch (NullPointerException npe) {
-			throw new IOException("Encountered NPE reading " + schemaFileName);
-		}
-		reader.close();
-		readChannel.close();
+		String schemaLine = AnalysisUtility.loadSchemaStr(schemaFileName);
 		
 		String[] schemaFieldStrs = schemaLine.split(",");
 		List<TableFieldSchema> schemaFields = new ArrayList<TableFieldSchema>(schemaFieldStrs.length);
@@ -202,8 +230,10 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 			String[] schemaFieldStrParts = schemaFieldStr.split(":");
 			field.setName(schemaFieldStrParts[0]);
 			field.setType(schemaFieldStrParts[1]);
+                        field.setMode("NULLABLE");
 			schemaFields.add(field);
 		}
+		
 		schema.setFields(schemaFields);
 	}
 }
