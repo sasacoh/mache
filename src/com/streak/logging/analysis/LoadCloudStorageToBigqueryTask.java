@@ -187,7 +187,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 				.build();
 		
 		Job job = new Job();
-		job.setId(startMsStr); // Spletart. Just in case. Set Id to disallow duplicates...http://stackoverflow.com/questions/11071916/bigquery-double-imports
+		job.setId(startMsStr); // Spletart. Just in case. Set the Id to disallow duplicates...http://stackoverflow.com/questions/11071916/bigquery-double-imports
 		JobConfiguration config = new JobConfiguration();
 		JobConfigurationLoad loadConfig = new JobConfigurationLoad();
 		

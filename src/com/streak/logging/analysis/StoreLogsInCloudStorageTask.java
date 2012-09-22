@@ -18,6 +18,7 @@ package com.streak.logging.analysis;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.servlet.http.HttpServlet;
@@ -51,6 +52,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		if (!"ALL".equals(logLevelStr)) {
 			logLevel = LogLevel.valueOf(logLevelStr);
 		}
+		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
 		String exporterSetClassStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM);
 		BigqueryFieldExporterSet exporterSet = AnalysisUtility.instantiateExporterSet(exporterSetClassStr);
 		String schemaHash = AnalysisUtility.computeSchemaHash(exporterSet);
@@ -60,7 +62,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 
 		AnalysisUtility.populateSchema(exporterSet, fieldNames, fieldTypes);
 
-		String respStr = generateExportables(startMs, endMs, bucketName, schemaHash, exporterSet, fieldNames, fieldTypes, logLevel);
+		String respStr = generateExportables(startMs, endMs, bucketName, schemaHash, exporterSet, fieldNames, fieldTypes, logLevel, logVersion);
 		Queue taskQueue = QueueFactory.getQueue(queueName);
 		taskQueue.add(
 				Builder.withUrl(
@@ -70,7 +72,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		resp.getWriter().println(respStr);
 	}
 
-	protected String generateExportables(long startMs, long endMs, String bucketName, String schemaHash,  BigqueryFieldExporterSet exporterSet, List<String> fieldNames, List<String> fieldTypes, LogLevel logLevel) throws IOException {
+	protected String generateExportables(long startMs, long endMs, String bucketName, String schemaHash,  BigqueryFieldExporterSet exporterSet, List<String> fieldNames, List<String> fieldTypes, LogLevel logLevel, String version) throws IOException {
 		List<BigqueryFieldExporter> exporters = exporterSet.getExporters();
 
 		LogService ls = LogServiceFactory.getLogService();
@@ -81,6 +83,9 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 
 		if (logLevel != null) {
 			lq = lq.minLogLevel(logLevel);
+		}
+		if (version != null && !version.isEmpty()) {			
+			lq.majorVersionIds(Arrays.asList(version));
 		}
 
 		String fileKey = AnalysisUtility.createLogKey(schemaHash, startMs, endMs);

@@ -68,6 +68,11 @@ public class AnalysisUtility {
 		return true;
 	}
 
+	public static String extractParameter(HttpServletRequest req, String paramName) {
+		String param = req.getParameter(paramName);
+		return param;
+	}
+	
 	public static String extractParameterOrThrow(HttpServletRequest req, String paramName) {
 		String param = req.getParameter(paramName);
 		if (!areParametersValid(param)) {

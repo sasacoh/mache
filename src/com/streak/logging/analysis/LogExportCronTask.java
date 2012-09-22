@@ -81,7 +81,7 @@ public class LogExportCronTask extends HttpServlet {
 		if (AnalysisUtility.areParametersValid(startMsStr)) {
 			startMs = Long.parseLong(startMsStr);
 		}
-		
+		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
 		String logLevel = req.getParameter(AnalysisConstants.LOG_LEVEL_PARAM);
 		if (!AnalysisUtility.areParametersValid(logLevel)) {
 			logLevel = getDefaultLogLevel();
@@ -165,6 +165,10 @@ public class LogExportCronTask extends HttpServlet {
 				.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
 				.param(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM, tableName)
 				.param(AnalysisConstants.LOG_LEVEL_PARAM, logLevel);
+			
+			if (logVersion != null && !logVersion.isEmpty()) {			
+				taskOptions.param(AnalysisConstants.LOG_VERSION, logVersion);
+			}
 			taskQueue.add(taskOptions);
 			taskCount += 1;
 		}

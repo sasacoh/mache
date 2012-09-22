@@ -39,6 +39,7 @@ public class AnalysisConstants {
 	public static final String KINDS_TO_EXCLUDE_PARAM = "kindsToExclude";
 	public static final String CLOUD_STORAGE_PATH_BASE_PARAM = "cloudStoragePathBase";
 	public static final String SHARD_COUNT_PARAM = "shardCount";
+	public static final String LOG_VERSION	= "logVersion";
 
 	// Amount to delay each load job to avoid getting rate limited by BigQuery
 	public static final long LOAD_DELAY_MS = 40000;
@@ -48,6 +49,7 @@ public class AnalysisConstants {
 
 	// Memcache namespace to use for BigQuery rate limiting
 	public static final String MEMCACHE_NAMESPACE = "mache";
+
 	
 	private AnalysisConstants() {	
 	}
