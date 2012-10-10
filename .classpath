@@ -2,7 +2,7 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="appengine-mapper.jar"/>
-	<classpathentry kind="con" path="com.google.appengine.eclipse.core.GAE_CONTAINER/App Engine (2)"/>
+	<classpathentry kind="con" path="com.google.appengine.eclipse.core.GAE_CONTAINER"/>
 	<classpathentry kind="lib" path="hadoop-0.20.2-core.jar"/>
 	<classpathentry kind="lib" path="bigquery_libs/google-api-client-1.11.0-beta.jar"/>
 	<classpathentry kind="lib" path="bigquery_libs/google-api-client-appengine-1.11.0-beta.jar"/>

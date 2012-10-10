@@ -42,6 +42,8 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.appengine.api.blobstore.BlobKey;
 import com.google.appengine.api.blobstore.BlobstoreService;
 import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
@@ -195,6 +197,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		JobConfigurationLoad loadConfig = new JobConfigurationLoad();
 		
 		loadConfig.setSourceUris(urisToProcess);
+		loadConfig.set("allowQuotedNewlines", true);
 		
 		TableSchema schema = new TableSchema();
 		// TODO(frew): Support for multiple schemas?
@@ -218,7 +221,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 	}
 	
 	private void loadSchema(String fileUri, TableSchema schema) throws IOException  {
-		// Hack(frew): Move to AnalysisUtility
+		// TODO(frew): Move to AnalysisUtility
 		String schemaFileUri = fileUri + ".schema";
 		String schemaFileName = "/gs/" + schemaFileUri.substring(schemaFileUri.indexOf("//") + 2);
 		BlobstoreService blobstoreService = BlobstoreServiceFactory.getBlobstoreService();

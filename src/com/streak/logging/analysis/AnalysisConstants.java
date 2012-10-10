@@ -23,7 +23,8 @@ public class AnalysisConstants {
 	public static final List<String> SCOPES = Arrays.asList(
 			"https://www.googleapis.com/auth/bigquery",
 			"https://www.googleapis.com/auth/devstorage.read_write");
-	
+
+	public static final String DEFAULT_DATASTORE_BACKUP_NAME = "macheDatastoreBackup";
 	public static final String BIGQUERY_DATASET_ID_PARAM = "bigqueryDatasetId";
 	public static final String BIGQUERY_PROJECT_ID_PARAM = "bigqueryProjectId";
 	public static final String BIGQUERY_TABLE_ID_PARAM = "bigqueryTableId";
@@ -41,6 +42,11 @@ public class AnalysisConstants {
 	public static final String SHARD_COUNT_PARAM = "shardCount";
 	public static final String LOG_VERSION	= "logVersion";
 
+	public static final String BUILTIN_DATASTORE_EXPORT_CONFIG = "builtinDatastoreExportConfig";
+	public static final String REPLACE_EXISTING_TABLES_PARAM = "replaceExistingTables";
+	public static final String BACKUP_NAME_PARAM = "backupName";
+	public static final String TIMESTAMP_PARAM = "timestamp";
+	
 	// Amount to delay each load job to avoid getting rate limited by BigQuery
 	public static final long LOAD_DELAY_MS = 40000;
 
@@ -53,4 +59,5 @@ public class AnalysisConstants {
 	
 	private AnalysisConstants() {	
 	}
+
 }
