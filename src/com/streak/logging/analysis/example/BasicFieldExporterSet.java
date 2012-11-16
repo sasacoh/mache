@@ -42,4 +42,9 @@ public class BasicFieldExporterSet implements BigqueryFieldExporterSet {
 	{
 		return false;
 	}
+
+	@Override
+	public int getRecordsCount(RequestLogs log) {
+		return 1;
+	}
 }

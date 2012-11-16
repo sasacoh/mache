@@ -47,4 +47,9 @@ public class TimestampFieldExporter implements BigqueryFieldExporter {
 		return "integer";
 	}
 
+	@Override
+	public Object getField(String name, int row) {
+		return getField(name);
+	}
+
 }

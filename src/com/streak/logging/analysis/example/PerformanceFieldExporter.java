@@ -99,4 +99,8 @@ public class PerformanceFieldExporter implements BigqueryFieldExporter {
 		return TYPES.get(i);
 	}
 
+	@Override
+	public Object getField(String name, int row) {
+		return getField(name);
+	}
 }

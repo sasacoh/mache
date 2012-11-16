@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -36,6 +37,7 @@ import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
 
 public class StoreLogsInCloudStorageTask extends HttpServlet {
+	
 	public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		resp.setContentType("text/plain");
 
@@ -99,29 +101,34 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			if (exporterSet.skipLog(log)) {
 				continue;
 			}
-			int exporterStartOffset = 0;
-			int currentOffset = 0;
-			for (BigqueryFieldExporter exporter : exporters) {
-				exporter.processLog(log);
-				while (currentOffset < exporterStartOffset + exporter.getFieldCount()) {
-					if (currentOffset > 0) {
-						writer.append(",");
+			int rows = exporterSet.getRecordsCount(log);
+			for (int i=0; i<rows; i++) {
+				int exporterStartOffset = 0;
+				int currentOffset = 0;
+				for (BigqueryFieldExporter exporter : exporters) {
+					exporter.processLog(log);				
+					while (currentOffset < exporterStartOffset + exporter.getFieldCount()) {
+						if (currentOffset > 0) {
+							writer.append(",");
+						}
+						Object fieldValue = exporter.getField(fieldNames.get(currentOffset), i);
+						if (fieldValue == null) {
+							throw new InvalidFieldException(
+									"Exporter " + exporter.getClass().getCanonicalName() + 
+									" didn't return field for " + fieldNames.get(currentOffset));
+						}
+	
+						writer.append(AnalysisUtility.formatCsvValue(fieldValue, fieldTypes.get(currentOffset)));
+						currentOffset++;
 					}
-					Object fieldValue = exporter.getField(fieldNames.get(currentOffset));
-					if (fieldValue == null) {
-						throw new InvalidFieldException(
-								"Exporter " + exporter.getClass().getCanonicalName() + 
-								" didn't return field for " + fieldNames.get(currentOffset));
-					}
-
-					writer.append(AnalysisUtility.formatCsvValue(fieldValue, fieldTypes.get(currentOffset)));
-					currentOffset++;
+					exporterStartOffset += exporter.getFieldCount();
 				}
-				exporterStartOffset += exporter.getFieldCount();
+				writer.append("\n");
+				
+				resultsCount++;
 			}
-			writer.append("\n");
-			
-			resultsCount++;
+			// just ping fileWriter to handle possible timeouts
+			writer.append("");
 		}
 		writer.closeFinally();
 		return "Saved " + resultsCount + " logs to gs://" + bucketName + "/" + fileKey;

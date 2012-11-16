@@ -50,4 +50,8 @@ public class VersionFieldExporter implements BigqueryFieldExporter {
 		return "string";
 	}
 
+	@Override
+	public Object getField(String name, int row) {
+		return getField(name);
+	}
 }

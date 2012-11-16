@@ -46,4 +46,9 @@ public class InstanceFieldExporter implements BigqueryFieldExporter {
 	public String getFieldType(int i) {
 		return "string";
 	}
+
+	@Override
+	public Object getField(String name, int row) {
+		return getField(name);
+	}
 }

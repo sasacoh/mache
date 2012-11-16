@@ -43,4 +43,10 @@ public interface BigqueryFieldExporterSet {
 	 */
 	public boolean skipLog(RequestLogs log);
 
+	/**
+	 * Get number of records in this log message
+	 * @return number of records
+	 */
+	public int getRecordsCount(RequestLogs log);
+
 }

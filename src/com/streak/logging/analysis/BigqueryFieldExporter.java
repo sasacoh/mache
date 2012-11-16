@@ -70,4 +70,12 @@ public interface BigqueryFieldExporter {
 	 * @return the BigQuery data type of the i'th field
 	 */
 	public String getFieldType(int i);
+
+	/**
+	 * 
+	 * @param name
+	 * @param row a row number
+	 * @return value
+	 */
+	public Object getField(String name, int row);
 }
