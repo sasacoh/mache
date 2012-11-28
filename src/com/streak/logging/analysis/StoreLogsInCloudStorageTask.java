@@ -37,6 +37,7 @@ import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
 
 public class StoreLogsInCloudStorageTask extends HttpServlet {
+	private static final Logger logger = Logger.getLogger(StoreLogsInCloudStorageTask.class.getName());
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		resp.setContentType("text/plain");
@@ -113,8 +114,11 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 						}
 						Object fieldValue = exporter.getField(fieldNames.get(currentOffset), i);
 						if (fieldValue == null) {
-							throw new InvalidFieldException(
-									"Exporter " + exporter.getClass().getCanonicalName() + 
+							// this is to HARD. Just skip this one...
+//							throw new InvalidFieldException(
+//									"Exporter " + exporter.getClass().getCanonicalName() + 
+//									" didn't return field for " + fieldNames.get(currentOffset));
+							logger.warning("Exporter " + exporter.getClass().getCanonicalName() + 
 									" didn't return field for " + fieldNames.get(currentOffset));
 						}
 	
