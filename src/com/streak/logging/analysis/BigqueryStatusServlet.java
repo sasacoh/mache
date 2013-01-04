@@ -17,7 +17,6 @@
 package com.streak.logging.analysis;
 
 import java.io.IOException;
-
 import java.util.List;
 
 import javax.servlet.http.HttpServlet;
@@ -33,8 +32,6 @@ import com.google.api.client.json.jackson.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobList;
-import com.google.api.services.bigquery.model.JobConfiguration;
-import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.ProjectList;
 import com.google.api.services.bigquery.model.ProjectList.Projects;
 
@@ -50,10 +47,7 @@ public class BigqueryStatusServlet extends HttpServlet {
 		resp.setContentType("text/plain");
 		AppIdentityCredential credential = new AppIdentityCredential(
 				AnalysisConstants.SCOPES);
-		HttpRequestFactory requestFactory = HTTP_TRANSPORT
-				.createRequestFactory(credential);
-		Bigquery bigquery = Bigquery.builder(HTTP_TRANSPORT, JSON_FACTORY)
-				.setHttpRequestInitializer(credential)
+		Bigquery bigquery = new Bigquery.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
 				.setApplicationName("Streak Logs").build();
 
 		Bigquery.Projects.List projectRequest = bigquery.projects().list();
