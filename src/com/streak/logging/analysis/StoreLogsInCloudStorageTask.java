@@ -118,8 +118,8 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 //							throw new InvalidFieldException(
 //									"Exporter " + exporter.getClass().getCanonicalName() + 
 //									" didn't return field for " + fieldNames.get(currentOffset));
-							logger.warning("Exporter " + exporter.getClass().getCanonicalName() + 
-									" didn't return field for " + fieldNames.get(currentOffset));
+//							logger.warning("Exporter " + exporter.getClass().getCanonicalName() + 
+//									" didn't return field for " + fieldNames.get(currentOffset));
 						}
 	
 						writer.append(AnalysisUtility.formatCsvValue(fieldValue, fieldTypes.get(currentOffset)));
