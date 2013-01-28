@@ -19,6 +19,7 @@ package com.streak.logging.analysis;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -42,8 +43,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.appengine.api.blobstore.BlobKey;
 import com.google.appengine.api.blobstore.BlobstoreService;
 import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
-import com.google.appengine.api.memcache.MemcacheService;
-import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
@@ -52,7 +51,8 @@ import com.google.appengine.api.taskqueue.TaskOptions.Method;
 public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 	private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
 	private static final JsonFactory JSON_FACTORY = new JacksonFactory();
-	
+	private static final Logger logger = Logger.getLogger(LoadCloudStorageToBigqueryTask.class.getName());
+
 	public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		resp.setContentType("text/plain");
 		
@@ -217,6 +217,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		insert.setProjectId(bigqueryProjectId);
 		JobReference ref = insert.execute().getJobReference();
 		resp.getWriter().println("Successfully started job " + ref);
+		logger.info("Import to BQ job started: " + ref.getJobId());
 	}
 	
 	private void loadSchema(String fileUri, TableSchema schema) throws IOException  {

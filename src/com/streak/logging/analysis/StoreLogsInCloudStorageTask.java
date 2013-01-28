@@ -135,6 +135,8 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			writer.append("");
 		}
 		writer.closeFinally();
-		return "Saved " + resultsCount + " logs to gs://" + bucketName + "/" + fileKey;
+		String msg = "Saved " + resultsCount + " logs to gs://" + bucketName + "/" + fileKey;
+		logger.info(msg);
+		return msg;
 	}
 }
