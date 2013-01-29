@@ -180,7 +180,12 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		String bigqueryDatasetId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_DATASET_ID_PARAM);
 		String bigqueryTableId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
 		
-
+		// Idempotency by spletart
+		String jobId = req.getParameter(AnalysisConstants.JOB_ID); // back door to repeat job
+		if (!AnalysisUtility.areParametersValid(jobId)) {
+			// set uniqueId to prevent duplicates / idemtpotency for BQ import
+			jobId = bucketName + "_" + startMsStr;
+		}
 		
 		for (String uri : urisToProcess) {
 			resp.getWriter().println("URI: " + uri);
@@ -191,7 +196,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 				.build();
 		
 		Job job = new Job();
-		job.setId(startMsStr); // Spletart. Just in case. Set the Id to disallow duplicates...http://stackoverflow.com/questions/11071916/bigquery-double-imports
+		job.setId(jobId); // by Spletart Just in case, must be [a-zA-Z][\w]{0,1023}. Set the Id to disallow duplicates...http://stackoverflow.com/questions/11071916/bigquery-double-imports
 		JobConfiguration config = new JobConfiguration();
 		JobConfigurationLoad loadConfig = new JobConfigurationLoad();
 		

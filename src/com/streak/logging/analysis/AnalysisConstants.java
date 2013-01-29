@@ -41,6 +41,7 @@ public class AnalysisConstants {
 	public static final String CLOUD_STORAGE_PATH_BASE_PARAM = "cloudStoragePathBase";
 	public static final String SHARD_COUNT_PARAM = "shardCount";
 	public static final String LOG_VERSION	= "logVersion";
+	public static final String JOB_ID	= "jobId";
 
 	public static final String BUILTIN_DATASTORE_EXPORT_CONFIG = "builtinDatastoreExportConfig";
 	public static final String REPLACE_EXISTING_TABLES_PARAM = "replaceExistingTables";

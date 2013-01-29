@@ -19,6 +19,7 @@ package com.streak.logging.analysis;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -39,7 +40,8 @@ import com.google.appengine.api.taskqueue.TaskOptions.Method;
 
 public class LogExportCronTask extends HttpServlet {
 	private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
-	 
+	private static final Logger logger = Logger.getLogger(LogExportCronTask.class.getName());
+
 	public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		resp.setContentType("text/plain");
 		
@@ -165,6 +167,7 @@ public class LogExportCronTask extends HttpServlet {
 			taskCount += 1;
 		}
 		resp.getWriter().println("Successfully started " + taskCount + " tasks");
+		logger.info("Successfully started " + taskCount + " tasks");
 	}
 	
 	protected String getDefaultBucketName() {
