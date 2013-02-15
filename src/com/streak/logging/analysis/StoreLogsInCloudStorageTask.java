@@ -67,10 +67,12 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 
 		String respStr = generateExportables(startMs, endMs, bucketName, schemaHash, exporterSet, fieldNames, fieldTypes, logLevel, logVersion);
 		Queue taskQueue = QueueFactory.getQueue(queueName);
+		// set unique task name to prevent duplicates / idempotency for BQ import
 		taskQueue.add(
 				Builder.withUrl(
 						AnalysisUtility.getRequestBaseName(req) + 
 						"/loadCloudStorageToBigquery?" + req.getQueryString())
+						.taskName(this.getClass().getSimpleName() + "_" + startMsStr)
 						.method(Method.GET));
 		resp.getWriter().println(respStr);
 	}
@@ -102,12 +104,12 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			if (exporterSet.skipLog(log)) {
 				continue;
 			}
-			int rows = exporterSet.getRecordsCount(log);
-			for (int i=0; i<rows; i++) {
-				int exporterStartOffset = 0;
-				int currentOffset = 0;
-				for (BigqueryFieldExporter exporter : exporters) {
-					exporter.processLog(log);				
+			int exporterStartOffset = 0;
+			int currentOffset = 0;
+			for (BigqueryFieldExporter exporter : exporters) {
+				// TODO get number of rows from exporter...
+				int rows = exporter.processLog(log);	
+				for (int i=0; i<rows; i++) {
 					while (currentOffset < exporterStartOffset + exporter.getFieldCount()) {
 						if (currentOffset > 0) {
 							writer.append(",");
@@ -115,22 +117,22 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 						Object fieldValue = exporter.getField(fieldNames.get(currentOffset), i);
 						if (fieldValue == null) {
 							// this is to HARD. Just skip this one...
-//							throw new InvalidFieldException(
-//									"Exporter " + exporter.getClass().getCanonicalName() + 
-//									" didn't return field for " + fieldNames.get(currentOffset));
-//							logger.warning("Exporter " + exporter.getClass().getCanonicalName() + 
-//									" didn't return field for " + fieldNames.get(currentOffset));
+	//							throw new InvalidFieldException(
+	//									"Exporter " + exporter.getClass().getCanonicalName() + 
+	//									" didn't return field for " + fieldNames.get(currentOffset));
+	//							logger.warning("Exporter " + exporter.getClass().getCanonicalName() + 
+	//									" didn't return field for " + fieldNames.get(currentOffset));
 						}
 	
 						writer.append(AnalysisUtility.formatCsvValue(fieldValue, fieldTypes.get(currentOffset)));
 						currentOffset++;
 					}
-					exporterStartOffset += exporter.getFieldCount();
 				}
-				writer.append("\n");
-				
-				resultsCount++;
+				exporterStartOffset += exporter.getFieldCount();
 			}
+			writer.append("\n");
+			
+			resultsCount++;
 			// just ping fileWriter to handle possible timeouts
 			writer.append("");
 		}

@@ -149,6 +149,7 @@ public class LogExportCronTask extends HttpServlet {
 			
 			TaskOptions taskOptions = Builder
 				.withUrl(AnalysisUtility.getRequestBaseName(req) + "/storeLogsInCloudStorage")
+				.taskName(this.getClass().getSimpleName() + "_" + startMsStr)
 				.method(Method.GET)
 				.param(AnalysisConstants.START_MS_PARAM, "" + currentStartMs)
 				.param(AnalysisConstants.END_MS_PARAM, "" + (currentStartMs + msPerFile))

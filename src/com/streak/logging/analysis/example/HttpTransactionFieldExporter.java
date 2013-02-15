@@ -31,10 +31,11 @@ public class HttpTransactionFieldExporter implements BigqueryFieldExporter {
 	private String httpVersion;
 	
 	@Override
-	public void processLog(RequestLogs log) {
+	public int processLog(RequestLogs log) {
 		httpStatus = log.getStatus();
 		method = log.getMethod();
 		httpVersion = log.getHttpVersion();
+		return 1;
 	}
 
 	@Override

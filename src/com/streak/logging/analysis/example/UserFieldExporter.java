@@ -30,10 +30,11 @@ public class UserFieldExporter implements BigqueryFieldExporter {
 	private String userAgent;
 	
 	@Override
-	public void processLog(RequestLogs log) {
+	public int processLog(RequestLogs log) {
 		nickname = log.getNickname();
 		ip = log.getIp();
 		userAgent = log.getUserAgent();
+		return 1;
 	}
 
 	@Override

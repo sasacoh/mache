@@ -16,9 +16,6 @@
 
 package com.streak.logging.analysis.example;
 
-import java.util.Arrays;
-import java.util.List;
-
 import com.google.appengine.api.log.RequestLogs;
 import com.streak.logging.analysis.BigqueryFieldExporter;
 
@@ -26,8 +23,9 @@ public class VersionFieldExporter implements BigqueryFieldExporter {
 	private String versionId;
 	
 	@Override
-	public void processLog(RequestLogs log) {
+	public int processLog(RequestLogs log) {
 		versionId = log.getVersionId();
+		return 1;
 	}
 
 	@Override

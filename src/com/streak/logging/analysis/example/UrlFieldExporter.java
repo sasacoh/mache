@@ -30,10 +30,11 @@ public class UrlFieldExporter implements BigqueryFieldExporter {
 	String resource = "";
 	
 	@Override
-	public void processLog(RequestLogs log) {
+	public int processLog(RequestLogs log) {
 		host = log.getHost();
 		resource = log.getResource();
 		path = resource.indexOf("?") > -1 ? resource.substring(0, resource.indexOf("?")) : resource;
+		return 1;
 	}
 
 	@Override
