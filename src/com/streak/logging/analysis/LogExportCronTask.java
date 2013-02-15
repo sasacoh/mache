@@ -115,7 +115,13 @@ public class LogExportCronTask extends HttpServlet {
 		if (!AnalysisUtility.areParametersValid(queueName)) {
 			queueName = getDefaultQueueName();
 		}
-		
+		// Idempotency by spletart
+		String taskName = req.getParameter(AnalysisConstants.TASK_NAME); // back door to repeat task
+		if (!AnalysisUtility.areParametersValid(taskName)) {
+			// set uniqueId to prevent duplicates / idemtpotency for BQ import
+			taskName = this.getClass().getSimpleName() + "_" + startMsStr;
+		}
+
 		AppIdentityCredential credential = new AppIdentityCredential(AnalysisConstants.SCOPES);
 		HttpRequestFactory requestFactory = HTTP_TRANSPORT.createRequestFactory(credential);
 		
@@ -149,7 +155,7 @@ public class LogExportCronTask extends HttpServlet {
 			
 			TaskOptions taskOptions = Builder
 				.withUrl(AnalysisUtility.getRequestBaseName(req) + "/storeLogsInCloudStorage")
-				.taskName(this.getClass().getSimpleName() + "_" + startMsStr)
+				.taskName(taskName)
 				.method(Method.GET)
 				.param(AnalysisConstants.START_MS_PARAM, "" + currentStartMs)
 				.param(AnalysisConstants.END_MS_PARAM, "" + (currentStartMs + msPerFile))

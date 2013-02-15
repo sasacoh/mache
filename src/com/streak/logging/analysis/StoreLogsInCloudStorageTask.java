@@ -55,6 +55,13 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		if (!"ALL".equals(logLevelStr)) {
 			logLevel = LogLevel.valueOf(logLevelStr);
 		}
+		// Idempotency by spletart
+		String taskName = req.getParameter(AnalysisConstants.TASK_NAME); // back door to repeat task
+		if (!AnalysisUtility.areParametersValid(taskName)) {
+			// set uniqueId to prevent duplicates / idemtpotency for BQ import
+			taskName = this.getClass().getSimpleName() + "_" + startMsStr;
+		}
+
 		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
 		String exporterSetClassStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM);
 		BigqueryFieldExporterSet exporterSet = AnalysisUtility.instantiateExporterSet(exporterSetClassStr);
@@ -72,7 +79,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 				Builder.withUrl(
 						AnalysisUtility.getRequestBaseName(req) + 
 						"/loadCloudStorageToBigquery?" + req.getQueryString())
-						.taskName(this.getClass().getSimpleName() + "_" + startMsStr)
+						.taskName(taskName)
 						.method(Method.GET));
 		resp.getWriter().println(respStr);
 	}
