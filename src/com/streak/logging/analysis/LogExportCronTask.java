@@ -149,18 +149,15 @@ public class LogExportCronTask extends HttpServlet {
 			String schemaKey = AnalysisUtility.createSchemaKey(schemaHash, currentStartMs, currentStartMs + msPerFile);
 			AnalysisUtility.writeSchema(fileService, bucketName, schemaKey, fieldNames, fieldTypes);
 			
-			String taskNameStr = "";
+			String taskNameStr = null;
 			// Idempotency by spletart
 			if (!AnalysisUtility.areParametersValid(taskName)) {
 				// set unique task name to prevent duplicates / idemtpotency for BQ import
 				taskNameStr = this.getClass().getSimpleName() + "_" + tableName + "_" + currentStartMs;
-			} else {
-				taskNameStr = taskName + "_" + currentStartMs;
 			}
 			
 			TaskOptions taskOptions = Builder
 				.withUrl(AnalysisUtility.getRequestBaseName(req) + "/storeLogsInCloudStorage")
-				.taskName(taskNameStr)
 				.method(Method.GET)
 				.param(AnalysisConstants.START_MS_PARAM, "" + currentStartMs)
 				.param(AnalysisConstants.END_MS_PARAM, "" + (currentStartMs + msPerFile))
@@ -170,8 +167,12 @@ public class LogExportCronTask extends HttpServlet {
 				.param(AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM, bigqueryFieldExporterSet)
 				.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
 				.param(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM, tableName)
-				.param(AnalysisConstants.TASK_NAME, taskNameStr)
 				.param(AnalysisConstants.LOG_LEVEL_PARAM, logLevel);
+			// set unique task name to prevent duplicates / idempotency for BQ import
+			if (null != taskNameStr){
+				taskOptions.taskName(taskNameStr);
+				taskOptions.param(AnalysisConstants.TASK_NAME, taskNameStr);
+			}
 			
 			if (logVersion != null && !logVersion.isEmpty()) {			
 				taskOptions.param(AnalysisConstants.LOG_VERSION, logVersion);

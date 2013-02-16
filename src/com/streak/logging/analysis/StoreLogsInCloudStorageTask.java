@@ -20,6 +20,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServlet;
@@ -33,6 +34,7 @@ import com.google.appengine.api.log.LogServiceFactory;
 import com.google.appengine.api.log.RequestLogs;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
 
@@ -55,12 +57,12 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		if (!"ALL".equals(logLevelStr)) {
 			logLevel = LogLevel.valueOf(logLevelStr);
 		}
-		// Idempotency by spletart
-		String tableName = req.getParameter(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
-		String taskName = req.getParameter(AnalysisConstants.TASK_NAME); // back door to repeat task
-		if (!AnalysisUtility.areParametersValid(taskName)) {
-			// set uniqueId to prevent duplicates / idemtpotency for BQ import
-			taskName = this.getClass().getSimpleName() + "_" + tableName + "_" + startMs;
+		// Idempotency by spletart (if taskName query param set, then do not set taskName in taskOptions)
+		String taskNameStr = null;
+		if (!AnalysisUtility.areParametersValid(req.getParameter(AnalysisConstants.TASK_NAME))) {
+			String tableName = req.getParameter(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
+			// set uniqueId to prevent duplicates / idempotency for BQ import
+			taskNameStr = this.getClass().getSimpleName() + "_" + tableName + "_" + startMs;
 		}
 
 		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
@@ -75,13 +77,16 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 
 		String respStr = generateExportables(startMs, endMs, bucketName, schemaHash, exporterSet, fieldNames, fieldTypes, logLevel, logVersion);
 		Queue taskQueue = QueueFactory.getQueue(queueName);
+		
+		TaskOptions taskOptions = Builder.withUrl(
+				AnalysisUtility.getRequestBaseName(req) + 
+				"/loadCloudStorageToBigquery?" + req.getQueryString())
+				.method(Method.GET);
 		// set unique task name to prevent duplicates / idempotency for BQ import
-		taskQueue.add(
-				Builder.withUrl(
-						AnalysisUtility.getRequestBaseName(req) + 
-						"/loadCloudStorageToBigquery?" + req.getQueryString())
-						.taskName(taskName)
-						.method(Method.GET));
+		if (null != taskNameStr){
+			taskOptions.taskName(taskNameStr);
+		}
+		taskQueue.add(taskOptions);
 		resp.getWriter().println(respStr);
 	}
 
