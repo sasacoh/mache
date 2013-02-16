@@ -47,7 +47,7 @@ public class PerformanceFieldExporter implements BigqueryFieldExporter {
 	private double cost;
 	
 	@Override
-	public int processLog(RequestLogs log) {
+	public void processLog(RequestLogs log) {
 		apiMcycles = log.getApiMcycles();
 		cost = log.getCost();
 		responseSize = log.getResponseSize();
@@ -55,7 +55,6 @@ public class PerformanceFieldExporter implements BigqueryFieldExporter {
 		loadingRequest = log.isLoadingRequest();
 		pendingTimeUsec = log.getPendingTimeUsec();
 		latencyUsec = log.getLatencyUsec();
-		return 1;
 	}
 
 	@Override

@@ -23,9 +23,8 @@ public class InstanceFieldExporter implements BigqueryFieldExporter {
 	private String instanceKey;
 	
 	@Override
-	public int processLog(RequestLogs log) {
+	public void processLog(RequestLogs log) {
 		instanceKey = log.getInstanceKey();
-		return 1;
 	}
 
 	@Override

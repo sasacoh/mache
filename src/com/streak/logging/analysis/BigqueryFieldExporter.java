@@ -37,7 +37,7 @@ public interface BigqueryFieldExporter {
 	 * @param log entry to be processed
 	 * @return number of rows (default = 1)
 	 */
-	public int processLog(RequestLogs log);
+	public void processLog(RequestLogs log);
 	
 	/**
 	 * Return the value of the given field for the last processed log.

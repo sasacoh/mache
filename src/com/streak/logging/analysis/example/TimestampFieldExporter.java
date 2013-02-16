@@ -23,9 +23,8 @@ public class TimestampFieldExporter implements BigqueryFieldExporter {
 	private long timestamp;
 	
 	@Override
-	public int processLog(RequestLogs log) {
+	public void processLog(RequestLogs log) {
 		timestamp = log.getStartTimeUsec();
-		return 1;
 	}
 
 	@Override

@@ -23,9 +23,8 @@ public class VersionFieldExporter implements BigqueryFieldExporter {
 	private String versionId;
 	
 	@Override
-	public int processLog(RequestLogs log) {
+	public void processLog(RequestLogs log) {
 		versionId = log.getVersionId();
-		return 1;
 	}
 
 	@Override
