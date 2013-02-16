@@ -144,18 +144,19 @@ public class LogExportCronTask extends HttpServlet {
 			long tableStartMs = currentStartMs - currentStartMs % msPerTable;
 			long tableEndMs = tableStartMs + msPerTable;
 			
-			String taskNameStr = "";
-			// Idempotency by spletart
-			if (!AnalysisUtility.areParametersValid(taskName)) {
-				// set unique task name to prevent duplicates / idemtpotency for BQ import
-				taskNameStr = this.getClass().getSimpleName() + "_" + currentStartMs;
-			} else {
-				taskNameStr = taskName + "_" + currentStartMs;
-			}
 			String tableName = AnalysisUtility.createLogKey(schemaHash, tableStartMs, tableEndMs);
 			
 			String schemaKey = AnalysisUtility.createSchemaKey(schemaHash, currentStartMs, currentStartMs + msPerFile);
 			AnalysisUtility.writeSchema(fileService, bucketName, schemaKey, fieldNames, fieldTypes);
+			
+			String taskNameStr = "";
+			// Idempotency by spletart
+			if (!AnalysisUtility.areParametersValid(taskName)) {
+				// set unique task name to prevent duplicates / idemtpotency for BQ import
+				taskNameStr = this.getClass().getSimpleName() + "_" + tableName + "_" + currentStartMs;
+			} else {
+				taskNameStr = taskName + "_" + currentStartMs;
+			}
 			
 			TaskOptions taskOptions = Builder
 				.withUrl(AnalysisUtility.getRequestBaseName(req) + "/storeLogsInCloudStorage")

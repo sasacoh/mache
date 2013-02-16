@@ -56,10 +56,11 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			logLevel = LogLevel.valueOf(logLevelStr);
 		}
 		// Idempotency by spletart
+		String tableName = req.getParameter(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
 		String taskName = req.getParameter(AnalysisConstants.TASK_NAME); // back door to repeat task
 		if (!AnalysisUtility.areParametersValid(taskName)) {
 			// set uniqueId to prevent duplicates / idemtpotency for BQ import
-			taskName = this.getClass().getSimpleName() + "_" + startMsStr;
+			taskName = this.getClass().getSimpleName() + "_" + tableName + "_" + startMs;
 		}
 
 		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
