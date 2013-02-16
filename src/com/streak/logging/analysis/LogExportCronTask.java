@@ -152,7 +152,7 @@ public class LogExportCronTask extends HttpServlet {
 			String taskNameStr = null;
 			// Idempotency by spletart
 			if (!AnalysisUtility.areParametersValid(taskName)) {
-				// set unique task name to prevent duplicates / idemtpotency for BQ import
+				// set unique task name to prevent duplicates / idempotency for BQ import
 				taskNameStr = this.getClass().getSimpleName() + "_" + tableName + "_" + currentStartMs;
 			}
 			
@@ -168,10 +168,12 @@ public class LogExportCronTask extends HttpServlet {
 				.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
 				.param(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM, tableName)
 				.param(AnalysisConstants.LOG_LEVEL_PARAM, logLevel);
+			if (null != taskName) {
+				taskOptions.param(AnalysisConstants.TASK_NAME, taskName);				
+			}
 			// set unique task name to prevent duplicates / idempotency for BQ import
-			if (null != taskNameStr){
+			if (null != taskNameStr) {
 				taskOptions.taskName(taskNameStr);
-				taskOptions.param(AnalysisConstants.TASK_NAME, taskNameStr);
 			}
 			
 			if (logVersion != null && !logVersion.isEmpty()) {			
