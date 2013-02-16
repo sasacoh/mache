@@ -170,6 +170,7 @@ public class LogExportCronTask extends HttpServlet {
 				.param(AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM, bigqueryFieldExporterSet)
 				.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
 				.param(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM, tableName)
+				.param(AnalysisConstants.TASK_NAME, taskNameStr)
 				.param(AnalysisConstants.LOG_LEVEL_PARAM, logLevel);
 			
 			if (logVersion != null && !logVersion.isEmpty()) {			
