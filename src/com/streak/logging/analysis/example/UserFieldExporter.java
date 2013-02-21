@@ -70,4 +70,14 @@ public class UserFieldExporter implements BigqueryFieldExporter {
 	public Object getField(String name, int row) {
 		return getField(name);
 	}
+	@Override
+	public String getFieldMode(int i) {
+		return "";
+	}
+
+	@Override
+	public String getFieldFields(int i) {
+		return "";
+	}
+
 }

@@ -115,7 +115,8 @@ public class LogExportCronTask extends HttpServlet {
 		if (!AnalysisUtility.areParametersValid(queueName)) {
 			queueName = getDefaultQueueName();
 		}
-		String taskName = req.getParameter(AnalysisConstants.TASK_NAME); // back door to repeat task
+		String taskName = req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME); // back door to repeat task
+		String format = req.getParameter(AnalysisConstants.SCHEMA_FORMAT); // CSV or JSON
 
 		AppIdentityCredential credential = new AppIdentityCredential(AnalysisConstants.SCOPES);
 		HttpRequestFactory requestFactory = HTTP_TRANSPORT.createRequestFactory(credential);
@@ -133,7 +134,9 @@ public class LogExportCronTask extends HttpServlet {
 		
 		List<String> fieldNames = new ArrayList<String>();
 		List<String> fieldTypes = new ArrayList<String>();
-		AnalysisUtility.populateSchema(exporterSet, fieldNames, fieldTypes);
+		List<String> fieldModes = new ArrayList<String>();
+		List<String> fieldFields = new ArrayList<String>();
+		AnalysisUtility.populateSchema(exporterSet, fieldNames, fieldTypes, fieldModes, fieldFields);
 		
 		FileService fileService = FileServiceFactory.getFileService();
 		
@@ -147,7 +150,12 @@ public class LogExportCronTask extends HttpServlet {
 			String tableName = AnalysisUtility.createLogKey(schemaHash, tableStartMs, tableEndMs);
 			
 			String schemaKey = AnalysisUtility.createSchemaKey(schemaHash, currentStartMs, currentStartMs + msPerFile);
-			AnalysisUtility.writeSchema(fileService, bucketName, schemaKey, fieldNames, fieldTypes);
+			if (format != null && format.toLowerCase().equals("json")) {
+				AnalysisUtility.writeJsonSchema(fileService, bucketName, schemaKey, fieldNames, fieldTypes, fieldModes, fieldFields);								
+			}
+			else {
+				AnalysisUtility.writeSchema(fileService, bucketName, schemaKey, fieldNames, fieldTypes);				
+			}
 			
 			String taskNameStr = null;
 			// Idempotency by spletart
@@ -169,13 +177,15 @@ public class LogExportCronTask extends HttpServlet {
 				.param(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM, tableName)
 				.param(AnalysisConstants.LOG_LEVEL_PARAM, logLevel);
 			if (null != taskName) {
-				taskOptions.param(AnalysisConstants.TASK_NAME, taskName);				
+				taskOptions.param(AnalysisConstants.UNIQUE_TASK_NAME, taskName);				
 			}
 			// set unique task name to prevent duplicates / idempotency for BQ import
 			if (null != taskNameStr) {
 				taskOptions.taskName(taskNameStr);
 			}
-			
+			if (null != format) {
+				taskOptions.param(AnalysisConstants.SCHEMA_FORMAT, format);
+			}		
 			if (logVersion != null && !logVersion.isEmpty()) {			
 				taskOptions.param(AnalysisConstants.LOG_VERSION, logVersion);
 			}

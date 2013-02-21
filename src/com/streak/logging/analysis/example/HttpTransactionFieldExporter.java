@@ -75,4 +75,14 @@ public class HttpTransactionFieldExporter implements BigqueryFieldExporter {
 		return getField(name);
 	}
 
+	@Override
+	public String getFieldMode(int i) {
+		return "";
+	}
+
+	@Override
+	public String getFieldFields(int i) {
+		return "";
+	}
+
 }

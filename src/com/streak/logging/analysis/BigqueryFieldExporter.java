@@ -71,7 +71,23 @@ public interface BigqueryFieldExporter {
 	 * @return the BigQuery data type of the i'th field
 	 */
 	public String getFieldType(int i);
-
+	
+	/**
+	 * Record mode for JSON schema (repeated)
+	 * 
+	 * @param i
+	 * @return
+	 */
+	public String getFieldMode(int i);
+	
+	/**
+	 * Fields for embedded JSON schema
+	 * 
+	 * @param i
+	 * @return
+	 */
+	public String getFieldFields(int i);
+	
 	/**
 	 * 
 	 * @param name

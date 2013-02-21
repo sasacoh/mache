@@ -47,6 +47,7 @@ import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
+import com.streak.logging.analysis.AnalysisConstants.EnumSourceFormat;
 
 public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 	private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
@@ -201,6 +202,17 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		JobConfigurationLoad loadConfig = new JobConfigurationLoad();
 		
 		loadConfig.setSourceUris(urisToProcess);
+		// Set source format...
+		String formatStr = req.getParameter(AnalysisConstants.SCHEMA_FORMAT);
+		if (AnalysisUtility.areParametersValid(formatStr)) {
+			try {
+				if (EnumSourceFormat.valueOf(formatStr) == EnumSourceFormat.JSON) {
+					loadConfig.setSourceFormat("NEWLINE_DELIMITED_JSON");				
+				}
+			} catch (Exception e) {
+			}			
+		}
+		
 		loadConfig.set("allowQuotedNewlines", true);
 		
 		TableSchema schema = new TableSchema();

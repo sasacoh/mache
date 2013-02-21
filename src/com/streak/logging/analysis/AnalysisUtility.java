@@ -208,9 +208,42 @@ public class AnalysisUtility {
         schemaWriter.close();
         schemaChannel.closeFinally();
     }
-
+    
+    public static void writeJsonSchema(FileService fileService, String bucketName, String schemaKey, List<String> fieldNames, List<String> fieldTypes, List<String> fieldModes, List<String> fieldFields) throws IOException,
+    		FileNotFoundException, FinalizationException, LockException {
+        GSFileOptionsBuilder schemaOptionsBuilder = new GSFileOptionsBuilder()
+        .setBucket(bucketName)
+        .setKey(schemaKey)
+        .setAcl("project-private");
+		AppEngineFile schemaFile = fileService.createNewGSFile(schemaOptionsBuilder.build());
+		FileWriteChannel schemaChannel = fileService.openWriteChannel(schemaFile, true);
+		PrintWriter schemaWriter = new PrintWriter(Channels.newWriter(schemaChannel, "UTF8"));
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append("[");
+		for (int i = 0; i < fieldNames.size(); i++) {
+			sb.append("{");
+			sb.append("\"name\":\"" + fieldNames.get(i) + "\"");
+			sb.append("\"type\":\"" + fieldTypes.get(i) + "\"");
+			if (null != fieldModes.get(i) && !fieldModes.get(i).isEmpty()) {
+				sb.append("\"mode\":\"" + fieldModes.get(i) + "\"");				
+			} 
+			if (null != fieldFields.get(i) && !fieldFields.get(i).isEmpty()) {
+				sb.append("\"fields\":" + fieldFields.get(i));				
+			} 
+			sb.append("}");
+		    if (i < fieldNames.size() - 1) {
+		        sb.append(",");
+		    }
+		}
+		sb.append("]");
+		schemaWriter.print(sb);
+		schemaWriter.close();
+		schemaChannel.closeFinally();
+    }
+    
     public static void populateSchema(BigqueryFieldExporterSet exporterSet,
-                                      List<String> fieldNames, List<String> fieldTypes) {
+                                      List<String> fieldNames, List<String> fieldTypes, List<String> fieldModes, List<String> fieldFields) {
         List<BigqueryFieldExporter> exporters = exporterSet.getExporters();
 
         for (BigqueryFieldExporter exporter : exporters) {
@@ -220,6 +253,12 @@ public class AnalysisUtility {
                 }
                 fieldNames.add(exporter.getFieldName(i));
                 fieldTypes.add(exporter.getFieldType(i).toLowerCase().intern());
+                if (null != fieldModes) {
+                	fieldModes.add(exporter.getFieldMode(i).toLowerCase().intern());                	                	
+                }
+                if (null != fieldFields) {
+                	fieldFields.add(exporter.getFieldFields(i).toLowerCase().intern());                	                	
+                }
             }
         }
     }
@@ -227,7 +266,7 @@ public class AnalysisUtility {
     public static String formatCsvValue(Object fieldValue, String type) {
         NumberFormat nf = createFixedPointFormat();
         // These strings have been interned so == works for comparison
-        if ("string" == type) {
+        if ("string" == type || "record" == type) {
             if (fieldValue instanceof Text) {
                 return AnalysisUtility.escapeAndQuoteField(((Text) fieldValue).getValue());
             }

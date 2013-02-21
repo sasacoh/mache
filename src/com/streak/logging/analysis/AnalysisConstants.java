@@ -42,7 +42,8 @@ public class AnalysisConstants {
 	public static final String SHARD_COUNT_PARAM = "shardCount";
 	public static final String LOG_VERSION	= "logVersion";
 	public static final String JOB_ID	= "jobId";
-	public static final String TASK_NAME = "taskName";
+	public static final String UNIQUE_TASK_NAME = "uniqueTaskName";
+	public static final String SCHEMA_FORMAT = "format"; // (csv | json) csv=default 
 
 	public static final String BUILTIN_DATASTORE_EXPORT_CONFIG = "builtinDatastoreExportConfig";
 	public static final String REPLACE_EXISTING_TABLES_PARAM = "replaceExistingTables";
@@ -58,6 +59,11 @@ public class AnalysisConstants {
 	// Memcache namespace to use for BigQuery rate limiting
 	public static final String MEMCACHE_NAMESPACE = "mache";
 
+	
+	enum EnumSourceFormat {
+		CSV,
+		JSON
+	}
 	
 	private AnalysisConstants() {	
 	}
