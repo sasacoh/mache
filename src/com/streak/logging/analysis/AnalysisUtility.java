@@ -75,6 +75,10 @@ public class AnalysisUtility {
         return "\"" + field.replace("\"", "\"\"").replace("\r\n", "\r").replace("\n", "\r") + "\"";
     }
 
+    public static String trimField(String field) {
+    	return field.replace("\r\n", "\r").replace("\n", "\r").replaceAll(" +", "");
+    }
+
     public static String createLogKey(String schemaHash, long startTime, long endTime) {
         return String.format("log_%s_%020d_%020d", schemaHash, startTime, endTime);
     }
@@ -266,12 +270,36 @@ public class AnalysisUtility {
     public static String formatCsvValue(Object fieldValue, String type) {
         NumberFormat nf = createFixedPointFormat();
         // These strings have been interned so == works for comparison
-        if ("string" == type || "record" == type) {
+        if ("string" == type) {
             if (fieldValue instanceof Text) {
                 return AnalysisUtility.escapeAndQuoteField(((Text) fieldValue).getValue());
             }
 
             return AnalysisUtility.escapeAndQuoteField("" + fieldValue);
+        }
+        if ("float" == type) {
+            return nf.format(fieldValue);
+        }
+        if ("integer" == type) {
+            if (fieldValue instanceof Date) {
+                return "" + ((Date) fieldValue).getTime();
+            }
+        }
+
+        return "" + fieldValue;
+    }
+    
+    public static String formatJsonValue(Object fieldValue, String type) {
+        NumberFormat nf = createFixedPointFormat();
+        // These strings have been interned so == works for comparison
+        if ("string" == type) {
+            if (fieldValue instanceof Text) {
+            	return AnalysisUtility.escapeAndQuoteField(((Text) fieldValue).getValue());
+            }
+            return AnalysisUtility.escapeAndQuoteField("" + fieldValue);
+        }
+        if ("record" == type) {
+            return AnalysisUtility.trimField("" + fieldValue);	
         }
         if ("float" == type) {
             return nf.format(fieldValue);

@@ -223,6 +223,18 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		return resultsCount++;
 	}
 
+	/**
+	 * write JSON records
+	 * 
+	 * @param exporterSet
+	 * @param exporters
+	 * @param log
+	 * @param writer
+	 * @param fieldNames
+	 * @param fieldTypes
+	 * @return
+	 * @throws IOException
+	 */
 	private int writeJsonRecords(BigqueryFieldExporterSet exporterSet,
 			List<BigqueryFieldExporter> exporters, RequestLogs log,
 			FancyFileWriter writer, List<String> fieldNames,
@@ -248,7 +260,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 							fieldNames.get(currentOffset), row);
 
 					writer.append("\"" + fieldName + "\":");
-					writer.append(AnalysisUtility.formatCsvValue(fieldValue,
+					writer.append(AnalysisUtility.formatJsonValue(fieldValue,
 							fieldTypes.get(currentOffset)));
 					currentOffset++;
 				}
