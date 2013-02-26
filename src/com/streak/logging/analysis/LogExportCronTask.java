@@ -161,7 +161,7 @@ public class LogExportCronTask extends HttpServlet {
 			// Idempotency by spletart
 			if (!AnalysisUtility.areParametersValid(taskName)) {
 				// set unique task name to prevent duplicates / idempotency for BQ import
-				taskNameStr = this.getClass().getSimpleName() + "_" + tableName + "_" + currentStartMs;
+				taskNameStr = this.getClass().getSimpleName() + "_" + bigqueryDatasetId + "_" + currentStartMs;
 			}
 			
 			TaskOptions taskOptions = Builder

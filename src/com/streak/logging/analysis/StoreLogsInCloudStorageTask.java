@@ -56,6 +56,8 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		String endMsStr = AnalysisUtility.extractParameterOrThrow(req,
 				AnalysisConstants.END_MS_PARAM);
 		long endMs = Long.parseLong(endMsStr);
+		
+		String bigqueryDatasetId = req.getParameter(AnalysisConstants.BIGQUERY_DATASET_ID_PARAM);
 
 		String bucketName = AnalysisUtility.extractParameterOrThrow(req,
 				AnalysisConstants.BUCKET_NAME_PARAM);
@@ -75,13 +77,13 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			String tableName = req
 					.getParameter(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
 			// set uniqueId to prevent duplicates / idempotency for BQ import
-			taskNameStr = this.getClass().getSimpleName() + "_" + tableName
+			taskNameStr = this.getClass().getSimpleName() + "_" + bigqueryDatasetId 
 					+ "_" + startMs;
 		}
 		String formatStr = req.getParameter(AnalysisConstants.SCHEMA_FORMAT);
 		EnumSourceFormat format = EnumSourceFormat.CSV;
 		try {
-			format = EnumSourceFormat.valueOf(formatStr);
+			format = EnumSourceFormat.valueOf(formatStr.toUpperCase());
 		} catch (Exception e) {
 		}
 

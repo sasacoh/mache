@@ -228,12 +228,12 @@ public class AnalysisUtility {
 		for (int i = 0; i < fieldNames.size(); i++) {
 			sb.append("{");
 			sb.append("\"name\":\"" + fieldNames.get(i) + "\"");
-			sb.append("\"type\":\"" + fieldTypes.get(i) + "\"");
+			sb.append(",\"type\":\"" + fieldTypes.get(i) + "\"");
 			if (null != fieldModes.get(i) && !fieldModes.get(i).isEmpty()) {
-				sb.append("\"mode\":\"" + fieldModes.get(i) + "\"");				
+				sb.append(",\"mode\":\"" + fieldModes.get(i) + "\"");				
 			} 
 			if (null != fieldFields.get(i) && !fieldFields.get(i).isEmpty()) {
-				sb.append("\"fields\":" + fieldFields.get(i));				
+				sb.append(",\"fields\":" + fieldFields.get(i));				
 			} 
 			sb.append("}");
 		    if (i < fieldNames.size() - 1) {
