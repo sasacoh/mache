@@ -16,17 +16,18 @@
 
 package com.streak.logging.analysis;
 
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.http.HttpRequest;
-import com.google.api.client.http.HttpRequestFactory;
-import com.google.api.client.http.HttpResponse;
-import com.google.appengine.api.datastore.Text;
-import com.google.appengine.api.files.*;
-import com.google.appengine.api.files.GSFileOptions.GSFileOptionsBuilder;
-import com.streak.datastore.analysis.builtin.BuiltinDatastoreExportConfiguration;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
+import java.nio.channels.Channels;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -35,14 +36,28 @@ import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
-import java.io.*;
-import java.nio.channels.Channels;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.text.NumberFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpRequestFactory;
+import com.google.api.client.http.HttpResponse;
+import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.api.services.bigquery.model.TableSchema;
+import com.google.appengine.api.datastore.Text;
+import com.google.appengine.api.files.AppEngineFile;
+import com.google.appengine.api.files.FileReadChannel;
+import com.google.appengine.api.files.FileService;
+import com.google.appengine.api.files.FileServiceFactory;
+import com.google.appengine.api.files.FileWriteChannel;
+import com.google.appengine.api.files.FinalizationException;
+import com.google.appengine.api.files.GSFileOptions.GSFileOptionsBuilder;
+import com.google.appengine.api.files.LockException;
+import com.streak.datastore.analysis.builtin.BuiltinDatastoreExportConfiguration;
 
 public class AnalysisUtility {
     // Only static methods
@@ -385,4 +400,18 @@ public class AnalysisUtility {
     public static String getPreBackupName(long timestamp) {
         return AnalysisConstants.DEFAULT_DATASTORE_BACKUP_NAME + timestamp + "_";
     }
+    
+	public static void loadJsonSchema(String fileUri, TableSchema schema) throws IOException  {
+		String schemaFileUri = fileUri + ".schema";
+		String schemaFileName = "/gs/" + schemaFileUri.substring(schemaFileUri.indexOf("//") + 2);		
+		String schemaLine = AnalysisUtility.loadSchemaStr(schemaFileName);
+//		Gson gson = new Gson();	
+//		Type schemaType = new TypeToken<List<TableFieldSchema>>() {}.getType();
+//		List<TableFieldSchema> schemaFields = gson.fromJson(schemaLine, schemaType);
+		ObjectMapper mapper = new ObjectMapper();
+		List<TableFieldSchema> schemaFields = mapper.readValue(schemaLine, mapper.getTypeFactory().constructCollectionType(List.class, TableFieldSchema.class));		
+		schema.setFields(schemaFields);
+	}
+	
+
 }

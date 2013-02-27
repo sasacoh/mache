@@ -40,9 +40,6 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.appengine.api.blobstore.BlobKey;
-import com.google.appengine.api.blobstore.BlobstoreService;
-import com.google.appengine.api.blobstore.BlobstoreServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
@@ -204,20 +201,25 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		loadConfig.setSourceUris(urisToProcess);
 		// Set source format...
 		String formatStr = req.getParameter(AnalysisConstants.SCHEMA_FORMAT);
-		if (AnalysisUtility.areParametersValid(formatStr)) {
-			try {
-				if (EnumSourceFormat.valueOf(formatStr) == EnumSourceFormat.JSON) {
-					loadConfig.setSourceFormat("NEWLINE_DELIMITED_JSON");				
-				}
-			} catch (Exception e) {
-			}			
+		
+		TableSchema schema = new TableSchema();
+		
+		EnumSourceFormat format = EnumSourceFormat.CSV;
+		try {
+			format = EnumSourceFormat.valueOf(formatStr);
+		} catch (Exception e) {
+		}			
+		
+		if (format == EnumSourceFormat.JSON) {			
+			AnalysisUtility.loadJsonSchema(schemaBaseUri, schema);	
+			loadConfig.setSourceFormat("NEWLINE_DELIMITED_JSON");				
+		}
+		else {
+			// TODO(frew): Support for multiple schemas?
+			loadSchema(schemaBaseUri, schema);			
 		}
 		
 		loadConfig.set("allowQuotedNewlines", true);
-		
-		TableSchema schema = new TableSchema();
-		// TODO(frew): Support for multiple schemas?
-		loadSchema(schemaBaseUri, schema);
 		loadConfig.setSchema(schema);
 		
 		TableReference table = new TableReference();
@@ -231,6 +233,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		Insert insert = bigquery.jobs().insert(bigqueryProjectId, job);
 		
 		// TODO(frew): Not sure this is necessary, but monkey-see'ing the example code
+		logger.info("BQ job config: " + loadConfig);
 		insert.setProjectId(bigqueryProjectId);
 		JobReference ref = insert.execute().getJobReference();
 		resp.getWriter().println("Successfully started job " + ref);
@@ -241,8 +244,6 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		// TODO(frew): Move to AnalysisUtility
 		String schemaFileUri = fileUri + ".schema";
 		String schemaFileName = "/gs/" + schemaFileUri.substring(schemaFileUri.indexOf("//") + 2);
-		BlobstoreService blobstoreService = BlobstoreServiceFactory.getBlobstoreService();
-		BlobKey key = blobstoreService.createGsBlobKey(schemaFileName);
 		
 		String schemaLine = AnalysisUtility.loadSchemaStr(schemaFileName);
 		
@@ -259,4 +260,5 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		
 		schema.setFields(schemaFields);
 	}
+	
 }
