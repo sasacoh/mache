@@ -66,12 +66,17 @@ public class LogExportCronTask extends HttpServlet {
 		if (AnalysisUtility.areParametersValid(endMsStr)) {
 			endMs = Long.parseLong(endMsStr);
 		}
+		String lookBackStr = req.getParameter(AnalysisConstants.LOOKBACK_PARAM);
+		int lookBack = 10;
+		if (AnalysisUtility.areParametersValid(lookBackStr)) {
+			lookBack = Integer.parseInt(lookBackStr);
+		}
 
 		// By default look back a ways, but safely under the limit of 1000 files
 		// per listing that Cloud Storage imposes
 		String startMsStr = req.getParameter(AnalysisConstants.START_MS_PARAM);
 		// For testing
-		long startMs = endMs - msPerFile * 10;
+		long startMs = endMs - msPerFile * lookBack;
 		if (AnalysisUtility.areParametersValid(startMsStr)) {
 			startMs = Long.parseLong(startMsStr);
 		}

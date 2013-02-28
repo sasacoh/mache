@@ -199,21 +199,14 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 					}
 					Object fieldValue = exporter.getField(
 							fieldNames.get(currentOffset), i);
+
 					if (fieldValue == null) {
 						// Just skip this one...
-						// throw new InvalidFieldException(
-						// "Exporter " + exporter.getClass().getCanonicalName()
-						// +
-						// " didn't return field for " +
-						// fieldNames.get(currentOffset));
-						// logger.warning("Exporter " +
-						// exporter.getClass().getCanonicalName() +
-						// " didn't return field for " +
-						// fieldNames.get(currentOffset));
+					} else {
+						writer.append(AnalysisUtility.formatCsvValue(fieldValue,
+								fieldTypes.get(currentOffset)));
 					}
 
-					writer.append(AnalysisUtility.formatCsvValue(fieldValue,
-							fieldTypes.get(currentOffset)));
 					currentOffset++;
 				}
 				exporterStartOffset += exporter.getFieldCount();
