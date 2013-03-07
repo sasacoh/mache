@@ -306,12 +306,15 @@ public class AnalysisUtility {
     
     public static String formatJsonValue(Object fieldValue, String type) {
         NumberFormat nf = createFixedPointFormat();
+        if (null == fieldValue) {
+        	return null;
+        }
         // These strings have been interned so == works for comparison
         if ("string" == type) {
             if (fieldValue instanceof Text) {
             	return AnalysisUtility.escapeAndQuoteField(((Text) fieldValue).getValue());
             }
-            return AnalysisUtility.escapeAndQuoteField("" + fieldValue);
+            return AnalysisUtility.escapeAndQuoteField("" + fieldValue);            	            
         }
         if ("record" == type) {
             return AnalysisUtility.trimField("" + fieldValue);	
