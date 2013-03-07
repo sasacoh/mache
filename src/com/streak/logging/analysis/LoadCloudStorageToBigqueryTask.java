@@ -178,13 +178,14 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		String bigqueryDatasetId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_DATASET_ID_PARAM);
 		String bigqueryTableId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
 		
-		// Idempotency by spletart
-		String jobId = req.getParameter(AnalysisConstants.JOB_ID); // back door to repeat job
-		if (!AnalysisUtility.areParametersValid(jobId)) {
-			// set uniqueId to prevent duplicates / idemtpotency for BQ import
-			jobId = bucketName + "_" + startMsStr;
+		// Import job idempotency by spletart
+		String jobId = null;
+		// not forced uniqueness by client (back door) and startMs is not null or empty
+		if (!AnalysisUtility.areParametersValid(req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME)) && null != startMsStr && !startMsStr.isEmpty()) {
+			// set managed uniqueId to prevent duplicates / idempotency for BQ import
+			jobId = "job_" + bigqueryDatasetId + "_" + bigqueryTableId + "_" + startMsStr;
 		}
-		
+
 		for (String uri : urisToProcess) {
 			resp.getWriter().println("URI: " + uri);
 		}
@@ -194,7 +195,6 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 				.build();
 		
 		Job job = new Job();
-		job.setId(jobId); // by Spletart Just in case, must be [a-zA-Z][\w]{0,1023}. Set the Id to disallow duplicates...http://stackoverflow.com/questions/11071916/bigquery-double-imports
 		JobConfiguration config = new JobConfiguration();
 		JobConfigurationLoad loadConfig = new JobConfigurationLoad();
 		
@@ -230,6 +230,10 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		
 		config.setLoad(loadConfig);
 		job.setConfiguration(config);
+		if (null != jobId && !jobId.isEmpty()) {
+			job.setId(jobId); // by Spletart Just in case, must be [a-zA-Z][\w]{0,1023}. Set the Id to disallow duplicates...http://stackoverflow.com/questions/11071916/bigquery-double-imports			
+		}
+
 		Insert insert = bigquery.jobs().insert(bigqueryProjectId, job);
 		
 		// TODO(frew): Not sure this is necessary, but monkey-see'ing the example code

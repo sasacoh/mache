@@ -17,11 +17,9 @@
 package com.streak.logging.analysis;
 
 import java.io.IOException;
-import java.text.Normalizer.Form;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServlet;
@@ -86,15 +84,10 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		// Idempotency by spletart (if taskName query param set, then do not set
 		// taskName in taskOptions)
 		String taskNameStr = null;
-		if (!AnalysisUtility.areParametersValid(req
-				.getParameter(AnalysisConstants.UNIQUE_TASK_NAME))) {
-			String tableName = req
-					.getParameter(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
-			// set uniqueId to prevent duplicates / idempotency for BQ import
-			taskNameStr = this.getClass().getSimpleName() + "_" + schemaHash + "_" + bigqueryDatasetId 
-					+ "_" + startMs;
+		if (!AnalysisUtility.areParametersValid(req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME))) {
+			// set managed uniqueId to prevent duplicates / idempotency for BQ import
+			taskNameStr = this.getClass().getSimpleName() + "_" + schemaHash + "_" + bigqueryDatasetId + "_" + startMs;
 		}
-
 
 		List<String> fieldNames = new ArrayList<String>();
 		List<String> fieldTypes = new ArrayList<String>();
