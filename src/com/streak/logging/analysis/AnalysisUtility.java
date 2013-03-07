@@ -408,9 +408,6 @@ public class AnalysisUtility {
 		String schemaFileUri = fileUri + ".schema";
 		String schemaFileName = "/gs/" + schemaFileUri.substring(schemaFileUri.indexOf("//") + 2);		
 		String schemaLine = AnalysisUtility.loadSchemaStr(schemaFileName);
-//		Gson gson = new Gson();	
-//		Type schemaType = new TypeToken<List<TableFieldSchema>>() {}.getType();
-//		List<TableFieldSchema> schemaFields = gson.fromJson(schemaLine, schemaType);
 		ObjectMapper mapper = new ObjectMapper();
 		List<TableFieldSchema> schemaFields = mapper.readValue(schemaLine, mapper.getTypeFactory().constructCollectionType(List.class, TableFieldSchema.class));		
 		schema.setFields(schemaFields);

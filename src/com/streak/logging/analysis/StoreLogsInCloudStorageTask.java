@@ -241,16 +241,21 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 				exporter.processLog(log);
 				while (currentOffset < exporterStartOffset
 						+ exporter.getFieldCount()) {
-					if (currentOffset > 0) {
-						writer.append(",");
-					}
 					String fieldName = exporter.getFieldName(currentOffset);
 					Object fieldValue = exporter.getField(
 							fieldNames.get(currentOffset), row);
 
-					writer.append("\"" + fieldName + "\":");
-					writer.append(AnalysisUtility.formatJsonValue(fieldValue,
-							fieldTypes.get(currentOffset)));
+					String fieldNameStr = "\"" + fieldName + "\":";
+					String fieldValueStr = AnalysisUtility.formatJsonValue(fieldValue,
+							fieldTypes.get(currentOffset));
+					// justi skip null fields
+					if (null != fieldValueStr) {
+						if (currentOffset > 0) {
+							writer.append(",");
+						}
+						writer.append(fieldNameStr);
+						writer.append(fieldValueStr);						
+					}
 					currentOffset++;
 				}
 				exporterStartOffset += exporter.getFieldCount();
