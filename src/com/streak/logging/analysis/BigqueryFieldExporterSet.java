@@ -49,4 +49,10 @@ public interface BigqueryFieldExporterSet {
 	 */
 	public int getRecordsCount(RequestLogs log);
 
+	/**
+	 * Data format (csv/schema)
+	 *
+	 * @return format
+	 */
+	AnalysisConstants.EnumSourceFormat getFormat();
 }

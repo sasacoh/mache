@@ -120,8 +120,8 @@ public class LogExportCronTask extends HttpServlet {
 		if (!AnalysisUtility.areParametersValid(queueName)) {
 			queueName = getDefaultQueueName();
 		}
-		String taskName = req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME); // back door to repeat task
-		String format = req.getParameter(AnalysisConstants.SCHEMA_FORMAT); // CSV or JSON
+		String useSystemTaskName = req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME); // back door to repeat task
+		AnalysisConstants.EnumSourceFormat format = exporterSet.getFormat();
 
 		AppIdentityCredential credential = new AppIdentityCredential(AnalysisConstants.SCOPES);
 		HttpRequestFactory requestFactory = HTTP_TRANSPORT.createRequestFactory(credential);
@@ -155,18 +155,11 @@ public class LogExportCronTask extends HttpServlet {
 			String tableName = AnalysisUtility.createLogKey(schemaHash, tableStartMs, tableEndMs);
 			
 			String schemaKey = AnalysisUtility.createSchemaKey(schemaHash, currentStartMs, currentStartMs + msPerFile);
-			if (format != null && format.toLowerCase().equals("json")) {
+			if (format == AnalysisConstants.EnumSourceFormat.JSON) {
 				AnalysisUtility.writeJsonSchema(fileService, bucketName, schemaKey, fieldNames, fieldTypes, fieldModes, fieldFields);								
 			}
 			else {
 				AnalysisUtility.writeSchema(fileService, bucketName, schemaKey, fieldNames, fieldTypes);				
-			}
-			
-			String taskNameStr = null;
-			// Idempotency by spletart
-			if (!AnalysisUtility.areParametersValid(taskName)) {
-				// set unique task name to prevent duplicates / idempotency for BQ import
-				taskNameStr = this.getClass().getSimpleName() + "_" + schemaHash + "_" + bigqueryDatasetId + "_" + currentStartMs;
 			}
 			
 			TaskOptions taskOptions = Builder
@@ -181,16 +174,15 @@ public class LogExportCronTask extends HttpServlet {
 				.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
 				.param(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM, tableName)
 				.param(AnalysisConstants.LOG_LEVEL_PARAM, logLevel);
-			if (null != taskName) {
-				taskOptions.param(AnalysisConstants.UNIQUE_TASK_NAME, taskName);				
-			}
-			// set unique task name to prevent duplicates / idempotency for BQ import
-			if (null != taskNameStr) {
+
+			if (!AnalysisUtility.areParametersValid(useSystemTaskName)) {
+				// set unique task name to prevent duplicates / idempotency for BQ import
+				String taskNameStr = "csstore_" + bucketName + "_" + currentStartMs;
 				taskOptions.taskName(taskNameStr);
+			} else {
+				taskOptions.param(AnalysisConstants.UNIQUE_TASK_NAME, useSystemTaskName);
 			}
-			if (null != format) {
-				taskOptions.param(AnalysisConstants.SCHEMA_FORMAT, format);
-			}		
+
 			if (logVersion != null && !logVersion.isEmpty()) {			
 				taskOptions.param(AnalysisConstants.LOG_VERSION, logVersion);
 			}

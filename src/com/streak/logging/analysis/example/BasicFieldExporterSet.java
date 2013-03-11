@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.google.appengine.api.log.RequestLogs;
+import com.streak.logging.analysis.AnalysisConstants;
 import com.streak.logging.analysis.BigqueryFieldExporter;
 import com.streak.logging.analysis.BigqueryFieldExporterSet;
 
@@ -46,5 +47,10 @@ public class BasicFieldExporterSet implements BigqueryFieldExporterSet {
 	@Override
 	public int getRecordsCount(RequestLogs log) {
 		return 1;
+	}
+
+	@Override
+	public AnalysisConstants.EnumSourceFormat getFormat() {
+		return AnalysisConstants.EnumSourceFormat.CSV;
 	}
 }

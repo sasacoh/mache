@@ -62,7 +62,7 @@ public class AnalysisConstants {
 
 
 	
-	enum EnumSourceFormat {
+	public enum EnumSourceFormat {
 		CSV,
 		JSON
 	}

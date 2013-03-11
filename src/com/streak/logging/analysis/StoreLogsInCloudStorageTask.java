@@ -67,27 +67,16 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		if (!"ALL".equals(logLevelStr)) {
 			logLevel = LogLevel.valueOf(logLevelStr);
 		}
-		String formatStr = req.getParameter(AnalysisConstants.SCHEMA_FORMAT);
-		EnumSourceFormat format = EnumSourceFormat.CSV;
-		try {
-			format = EnumSourceFormat.valueOf(formatStr.toUpperCase());
-		} catch (Exception e) {
-		}
-
 		String logVersion = AnalysisUtility.extractParameter(req,
 				AnalysisConstants.LOG_VERSION);
+
+		String useSystemTaskName = req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME); // back door to repeat task
+
 		String exporterSetClassStr = AnalysisUtility.extractParameterOrThrow(
 				req, AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM);
 		BigqueryFieldExporterSet exporterSet = AnalysisUtility
 				.instantiateExporterSet(exporterSetClassStr);
 		String schemaHash = AnalysisUtility.computeSchemaHash(exporterSet);
-		// Idempotency by spletart (if taskName query param set, then do not set
-		// taskName in taskOptions)
-		String taskNameStr = null;
-		if (!AnalysisUtility.areParametersValid(req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME))) {
-			// set managed uniqueId to prevent duplicates / idempotency for BQ import
-			taskNameStr = this.getClass().getSimpleName() + "_" + schemaHash + "_" + bigqueryDatasetId + "_" + startMs;
-		}
 
 		List<String> fieldNames = new ArrayList<String>();
 		List<String> fieldTypes = new ArrayList<String>();
@@ -98,8 +87,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 				fieldModes, fieldFields);
 
 		String respStr = generateExportables(startMs, endMs, bucketName,
-				schemaHash, exporterSet, fieldNames, fieldTypes, logLevel,
-				logVersion, format);
+				schemaHash, exporterSet, fieldNames, fieldTypes, logLevel, logVersion);
 		Queue taskQueue = QueueFactory.getQueue(queueName);
 
 		TaskOptions taskOptions = Builder
@@ -107,10 +95,13 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 						AnalysisUtility.getRequestBaseName(req)
 								+ "/loadCloudStorageToBigquery?"
 								+ req.getQueryString()).method(Method.GET);
-		// set unique task name to prevent duplicates / idempotency for BQ
-		// import
-		if (null != taskNameStr) {
+		// Idempotency by spletart (if taskName query param set, then do not set taskName in taskOptions)
+		if (!AnalysisUtility.areParametersValid(useSystemTaskName)) {
+			// set managed uniqueId to prevent duplicates / idempotency for BQ import
+			String taskNameStr = "bqimport_" + bigqueryDatasetId + "_" + schemaHash + "_" + startMs;
 			taskOptions.taskName(taskNameStr);
+		} else {
+			taskOptions.param(AnalysisConstants.UNIQUE_TASK_NAME, useSystemTaskName);
 		}
 		try {
 			taskQueue.add(taskOptions);
@@ -125,8 +116,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 	protected String generateExportables(long startMs, long endMs,
 			String bucketName, String schemaHash,
 			BigqueryFieldExporterSet exporterSet, List<String> fieldNames,
-			List<String> fieldTypes, LogLevel logLevel, String version,
-			EnumSourceFormat format) throws IOException {
+			List<String> fieldTypes, LogLevel logLevel, String version) throws IOException {
 		List<BigqueryFieldExporter> exporters = exporterSet.getExporters();
 
 		LogService ls = LogServiceFactory.getLogService();
@@ -146,6 +136,8 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 
 		FancyFileWriter writer = new FancyFileWriter(bucketName, fileKey);
 		Iterable<RequestLogs> logs = ls.fetch(lq);
+
+		EnumSourceFormat format = exporterSet.getFormat();
 
 		int resultsCount = 0;
 		for (RequestLogs log : logs) {
