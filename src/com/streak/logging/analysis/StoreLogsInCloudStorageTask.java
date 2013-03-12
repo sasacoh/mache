@@ -100,8 +100,6 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			// set managed uniqueId to prevent duplicates / idempotency for BQ import
 			String taskNameStr = "bqimport_" + bigqueryDatasetId + "_" + schemaHash + "_" + startMs;
 			taskOptions.taskName(taskNameStr);
-		} else {
-			taskOptions.param(AnalysisConstants.UNIQUE_TASK_NAME, useSystemTaskName);
 		}
 		try {
 			taskQueue.add(taskOptions);
