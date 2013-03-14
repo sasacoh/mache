@@ -31,10 +31,7 @@ import com.google.appengine.api.log.LogService;
 import com.google.appengine.api.log.LogService.LogLevel;
 import com.google.appengine.api.log.LogServiceFactory;
 import com.google.appengine.api.log.RequestLogs;
-import com.google.appengine.api.taskqueue.Queue;
-import com.google.appengine.api.taskqueue.QueueFactory;
-import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
-import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.appengine.api.taskqueue.*;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
 import com.streak.logging.analysis.AnalysisConstants.EnumSourceFormat;
@@ -96,17 +93,19 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 								+ "/loadCloudStorageToBigquery?"
 								+ req.getQueryString()).method(Method.GET);
 		// Idempotency by spletart (if taskName query param set, then do not set taskName in taskOptions)
+		String taskNameStr = "bqimport_" + bigqueryDatasetId + "_" + schemaHash + "_" + startMs;
 		if (!AnalysisUtility.areParametersValid(useSystemTaskName)) {
 			// set managed uniqueId to prevent duplicates / idempotency for BQ import
-			String taskNameStr = "bqimport_" + bigqueryDatasetId + "_" + schemaHash + "_" + startMs;
 			taskOptions.taskName(taskNameStr);
+			logger.info("Task name: " + taskNameStr);
 		}
 		try {
+			// set task retry options to 0 to prevent duplicates...
+			taskOptions.retryOptions(RetryOptions.Builder.withTaskRetryLimit(0));
 			taskQueue.add(taskOptions);
 		} catch (TaskAlreadyExistsException e) {
 			// just error log to prevent task restarts
-			logger.warning("Error creating task (tombstoned): "
-					+ e.getMessage());
+			logger.warning("Error creating task '" + taskNameStr + "' (tombstoned): " + e.getMessage());
 		}
 		resp.getWriter().println(respStr);
 	}
