@@ -120,6 +120,8 @@ public class LogExportCronTask extends HttpServlet {
 		if (!AnalysisUtility.areParametersValid(queueName)) {
 			queueName = getDefaultQueueName();
 		}
+		String maxErrorRecords = req.getParameter(AnalysisConstants.MAX_ERRORS);
+
 		String useSystemTaskName = req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME); // back door to repeat task
 		AnalysisConstants.EnumSourceFormat format = exporterSet.getFormat();
 
@@ -186,6 +188,10 @@ public class LogExportCronTask extends HttpServlet {
 			if (logVersion != null && !logVersion.isEmpty()) {
 				taskOptions.param(AnalysisConstants.LOG_VERSION, logVersion);
 			}
+			if (maxErrorRecords != null && !maxErrorRecords.isEmpty()) {
+				taskOptions.param(AnalysisConstants.MAX_ERRORS, maxErrorRecords);
+			}
+
 			try {
 				taskQueue.add(taskOptions);
 				taskCount += 1;

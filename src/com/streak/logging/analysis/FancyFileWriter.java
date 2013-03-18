@@ -21,10 +21,10 @@ import com.google.appengine.api.files.LockException;
  */
 public class FancyFileWriter {
 	// Batch writes so that they're at least FILE_BUFFER_LIMIT bytes
-	private static final int FILE_BUFFER_LIMIT = 500000;
+	private static final int FILE_BUFFER_LIMIT = 100000;
 
 	// Reopen file every OPEN_MILLIS_LIMIT ms
-	private static final int OPEN_MILLIS_LIMIT = 25000;
+	private static final int OPEN_MILLIS_LIMIT = 20000;
 	
 	private static final Logger log = Logger.getLogger(FancyFileWriter.class.getName());
 

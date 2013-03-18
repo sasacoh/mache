@@ -148,6 +148,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 				if (retry != null && !retry.isEmpty())
 				{
 					// OK, I give up now...
+					logger.warning("No uris to process from fetchCloudStorageUris. Giving up.");
 					return;
 				}
 				// retrying...
@@ -199,6 +200,18 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		JobConfigurationLoad loadConfig = new JobConfigurationLoad();
 		
 		loadConfig.setSourceUris(urisToProcess);
+
+		String maxErrorsStr = req.getParameter(AnalysisConstants.MAX_ERRORS);
+		// expiremental default
+		int maxErrors = 5;
+		if (maxErrorsStr != null && !maxErrorsStr.isEmpty()) {
+			try {
+				maxErrors = Integer.parseInt(maxErrorsStr);
+			}
+			catch (Exception e) {
+			}
+		}
+
 		// Set source format...
 		String formatStr = req.getParameter(AnalysisConstants.SCHEMA_FORMAT);
 		
@@ -227,6 +240,8 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		table.setDatasetId(bigqueryDatasetId);
 		table.setTableId(bigqueryTableId);
 		loadConfig.setDestinationTable(table);
+		// experimental...
+		loadConfig.setMaxBadRecords(maxErrors);
 		
 		config.setLoad(loadConfig);
 		job.setConfiguration(config);

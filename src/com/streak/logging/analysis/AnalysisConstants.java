@@ -45,12 +45,13 @@ public class AnalysisConstants {
 	public static final String UNIQUE_TASK_NAME = "uniqueTaskName";
 	public static final String SCHEMA_FORMAT = "format"; // (csv | json) csv=default 
 	public static final String LOOKBACK_PARAM = "lookBack"; // how many files intervals to go back (default 10)
+	public static final String MAX_ERRORS = "maxErrors";  // how many errors are tolerated
 
 	public static final String BUILTIN_DATASTORE_EXPORT_CONFIG = "builtinDatastoreExportConfig";
 	public static final String REPLACE_EXISTING_TABLES_PARAM = "replaceExistingTables";
 	public static final String BACKUP_NAME_PARAM = "backupName";
 	public static final String TIMESTAMP_PARAM = "timestamp";
-	
+
 	// Amount to delay each load job to avoid getting rate limited by BigQuery
 	public static final long LOAD_DELAY_MS = 40000;
 
@@ -61,7 +62,7 @@ public class AnalysisConstants {
 	public static final String MEMCACHE_NAMESPACE = "mache";
 
 
-	
+
 	public enum EnumSourceFormat {
 		CSV,
 		JSON
