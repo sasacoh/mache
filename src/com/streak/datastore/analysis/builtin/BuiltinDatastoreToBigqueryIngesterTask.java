@@ -18,6 +18,7 @@ package com.streak.datastore.analysis.builtin;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -40,13 +41,16 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Entity;
+import com.google.appengine.api.datastore.FetchOptions;
 import com.google.appengine.api.datastore.KeyFactory;
 import com.google.appengine.api.datastore.PreparedQuery;
 import com.google.appengine.api.datastore.Query;
 import com.google.appengine.api.datastore.Query.FilterOperator;
 import com.google.appengine.api.datastore.Query.FilterPredicate;
+import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
+import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
 import com.streak.logging.analysis.AnalysisConstants;
 import com.streak.logging.analysis.AnalysisUtility;
@@ -104,7 +108,7 @@ public class BuiltinDatastoreToBigqueryIngesterTask extends HttpServlet {
 		// Instantiate the export config 
 		BuiltinDatastoreExportConfiguration exporterConfig = AnalysisUtility.instantiateExportConfig(builtinDatastoreExportConfig);
 		
-		String keyOfCompletedBackup = checkAndGetCompletedBackup(AnalysisUtility.getPostBackupName(timestamp)); 
+		String keyOfCompletedBackup = checkAndGetCompletedBackup(AnalysisUtility.getPreBackupName(timestamp, exporterConfig.getBackupNamePrefix())); 
 		if (keyOfCompletedBackup == null) {
 			resp.getWriter().println(AnalysisUtility.successJson("backup incomplete, retrying in " + MILLIS_TO_ENQUEUE + " millis"));
 			enqueueTask(AnalysisUtility.getRequestBaseName(req), exporterConfig, timestamp, MILLIS_TO_ENQUEUE);
@@ -171,22 +175,39 @@ public class BuiltinDatastoreToBigqueryIngesterTask extends HttpServlet {
 				// TODO(frew): Not sure this is necessary, but monkey-see'ing the example code
 				insert.setProjectId(exporterConfig.getBigqueryProjectId());
 				JobReference ref = insert.execute().getJobReference();
+				
+				Queue taskQueue = QueueFactory.getQueue(exporterConfig.getQueueName());
+				taskQueue.add(
+						Builder.withUrl(
+								AnalysisUtility.getRequestBaseName(req) + "/deleteCompletedCloudStorageFilesTask")
+							   .method(Method.GET)
+							   .param(AnalysisConstants.BIGQUERY_JOB_ID_PARAM, ref.getJobId())
+							   .param(AnalysisConstants.QUEUE_NAME_PARAM, exporterConfig.getQueueName())
+							   .param(AnalysisConstants.BIGQUERY_PROJECT_ID_PARAM, exporterConfig.getBigqueryProjectId()));
+				
 			}
 		}
 	}
 
 
-	private String checkAndGetCompletedBackup(String backupName) {
+	private String checkAndGetCompletedBackup(String backupName) throws IOException {
 		System.err.println("backupName: " + backupName);
 		
 		DatastoreService datastore = DatastoreServiceFactory.getDatastoreService();
 		
 		Query q = new Query("_AE_Backup_Information");
-		FilterPredicate fp = new FilterPredicate("name", FilterOperator.EQUAL, backupName);
+		
+		// for some reason the datastore admin code appends the date to the backup name even when creating programatically, 
+		// so test for greater than or equal to and then take the first result
+		FilterPredicate fp = new FilterPredicate("name", FilterOperator.GREATER_THAN_OR_EQUAL, backupName);
 		q.setFilter(fp);
 		
 		PreparedQuery pq = datastore.prepare(q);
-		Entity result = pq.asSingleEntity();
+		List<Entity> results = pq.asList(FetchOptions.Builder.withLimit(1));
+		if (results.size() != 1) {
+			throw new IOException("fatal error - can't find the datastore backup entity, big trouble");
+		}
+		Entity result = results.get(0);
 		
 		Object completion = result.getProperty("complete_time");
 		String keyResult = null;

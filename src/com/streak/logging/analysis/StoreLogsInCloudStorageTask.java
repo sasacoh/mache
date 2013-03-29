@@ -16,25 +16,37 @@
 
 package com.streak.logging.analysis;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.channels.Channels;
+import java.text.NumberFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
-import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.google.appengine.api.files.AppEngineFile;
+import com.google.appengine.api.files.FileService;
+import com.google.appengine.api.files.FileServiceFactory;
+import com.google.appengine.api.files.FileWriteChannel;
+import com.google.appengine.api.files.FinalizationException;
+import com.google.appengine.api.files.GSFileOptions.GSFileOptionsBuilder;
+import com.google.appengine.api.files.LockException;
 import com.google.appengine.api.log.LogQuery;
 import com.google.appengine.api.log.LogService;
-import com.google.appengine.api.log.LogService.LogLevel;
 import com.google.appengine.api.log.LogServiceFactory;
 import com.google.appengine.api.log.RequestLogs;
-import com.google.appengine.api.taskqueue.*;
+import com.google.appengine.api.log.LogService.LogLevel;
+import com.google.appengine.api.memcache.MemcacheService;
+import com.google.appengine.api.memcache.MemcacheServiceFactory;
+import com.google.appengine.api.taskqueue.Queue;
+import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
-import com.streak.logging.analysis.AnalysisConstants.EnumSourceFormat;
 
 public class StoreLogsInCloudStorageTask extends HttpServlet {
 	private static final Logger logger = Logger
@@ -44,35 +56,21 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			throws IOException {
 		resp.setContentType("text/plain");
 
-		String startMsStr = AnalysisUtility.extractParameterOrThrow(req,
-				AnalysisConstants.START_MS_PARAM);
+		String startMsStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.START_MS_PARAM);
 		long startMs = Long.parseLong(startMsStr);
 
-		String endMsStr = AnalysisUtility.extractParameterOrThrow(req,
-				AnalysisConstants.END_MS_PARAM);
+		String endMsStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.END_MS_PARAM);
 		long endMs = Long.parseLong(endMsStr);
-		
-		String bigqueryDatasetId = req.getParameter(AnalysisConstants.BIGQUERY_DATASET_ID_PARAM);
 
-		String bucketName = AnalysisUtility.extractParameterOrThrow(req,
-				AnalysisConstants.BUCKET_NAME_PARAM);
-		String queueName = AnalysisUtility.extractParameterOrThrow(req,
-				AnalysisConstants.QUEUE_NAME_PARAM);
-		String logLevelStr = AnalysisUtility.extractParameterOrThrow(req,
-				AnalysisConstants.LOG_LEVEL_PARAM);
+		String bucketName = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BUCKET_NAME_PARAM);
+		String queueName = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.QUEUE_NAME_PARAM);
+		String logLevelStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.LOG_LEVEL_PARAM);
 		LogLevel logLevel = null;
 		if (!"ALL".equals(logLevelStr)) {
 			logLevel = LogLevel.valueOf(logLevelStr);
 		}
-		String logVersion = AnalysisUtility.extractParameter(req,
-				AnalysisConstants.LOG_VERSION);
-
-		String useSystemTaskName = req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME); // back door to repeat task
-
-		String exporterSetClassStr = AnalysisUtility.extractParameterOrThrow(
-				req, AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM);
-		BigqueryFieldExporterSet exporterSet = AnalysisUtility
-				.instantiateExporterSet(exporterSetClassStr);
+		String exporterSetClassStr = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_FIELD_EXPORTER_SET_PARAM);
+		BigqueryFieldExporterSet exporterSet = AnalysisUtility.instantiateExporterSet(exporterSetClassStr);
 		String schemaHash = AnalysisUtility.computeSchemaHash(exporterSet);
 
 		List<String> fieldNames = new ArrayList<String>();
@@ -80,11 +78,9 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		List<String> fieldModes = new ArrayList<String>();
 		List<String> fieldFields = new ArrayList<String>();
 
-		AnalysisUtility.populateSchema(exporterSet, fieldNames, fieldTypes,
-				fieldModes, fieldFields);
+		AnalysisUtility.populateSchema(exporterSet, fieldNames, fieldTypes);
 
-		String respStr = generateExportables(startMs, endMs, bucketName,
-				schemaHash, exporterSet, fieldNames, fieldTypes, logLevel, logVersion);
+		String respStr = generateExportables(startMs, endMs, bucketName, schemaHash, exporterSet, fieldNames, fieldTypes, logLevel);
 		Queue taskQueue = QueueFactory.getQueue(queueName);
 
 		TaskOptions taskOptions = Builder
@@ -107,30 +103,33 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			// just error log to prevent task restarts
 			logger.warning("Error creating task '" + taskNameStr + "' (tombstoned): " + e.getMessage());
 		}
+				
 		resp.getWriter().println(respStr);
 	}
 
-	protected String generateExportables(long startMs, long endMs,
-			String bucketName, String schemaHash,
-			BigqueryFieldExporterSet exporterSet, List<String> fieldNames,
-			List<String> fieldTypes, LogLevel logLevel, String version) throws IOException {
+	protected String generateExportables(long startMs, long endMs, String bucketName, String schemaHash,  BigqueryFieldExporterSet exporterSet, List<String> fieldNames, List<String> fieldTypes, LogLevel logLevel) throws IOException {
 		List<BigqueryFieldExporter> exporters = exporterSet.getExporters();
 
 		LogService ls = LogServiceFactory.getLogService();
 		LogQuery lq = new LogQuery();
-		lq = lq.startTimeUsec(startMs * 1000).endTimeUsec(endMs * 1000)
+		lq = lq.startTimeUsec(startMs * 1000)
+				.endTimeUsec(endMs * 1000)
 				.includeAppLogs(true);
 
 		if (logLevel != null) {
 			lq = lq.minLogLevel(logLevel);
 		}
+		
+		List<String> appVersions = exporterSet.applicationVersionsToExport();
+		if (appVersions != null && appVersions.size() > 0) {
+			lq = lq.majorVersionIds(appVersions);
+		}
 		if (version != null && !version.isEmpty()) {
 			lq.majorVersionIds(Arrays.asList(version));
 		}
 
-		String fileKey = AnalysisUtility.createLogKey(schemaHash, startMs,
-				endMs);
-
+		String fileKey = AnalysisUtility.createLogKey(schemaHash, startMs, endMs);
+		
 		FancyFileWriter writer = new FancyFileWriter(bucketName, fileKey);
 		Iterable<RequestLogs> logs = ls.fetch(lq);
 
@@ -174,31 +173,28 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			int currentOffset = 0;
 			for (BigqueryFieldExporter exporter : exporters) {
 				exporter.processLog(log);
-				while (currentOffset < exporterStartOffset
-						+ exporter.getFieldCount()) {
+				while (currentOffset < exporterStartOffset + exporter.getFieldCount()) {
 					if (currentOffset > 0) {
 						writer.append(",");
 					}
-					Object fieldValue = exporter.getField(
-							fieldNames.get(currentOffset), i);
-
+					Object fieldValue = exporter.getField(fieldNames.get(currentOffset));
 					if (fieldValue == null) {
-						// Just skip this one...
-					} else {
-						writer.append(AnalysisUtility.formatCsvValue(fieldValue,
-								fieldTypes.get(currentOffset)));
+						throw new InvalidFieldException(
+								"Exporter " + exporter.getClass().getCanonicalName() + 
+								" didn't return field for " + fieldNames.get(currentOffset));
 					}
 
+					writer.append(AnalysisUtility.formatCsvValue(fieldValue, fieldTypes.get(currentOffset)));
 					currentOffset++;
 				}
 				exporterStartOffset += exporter.getFieldCount();
 			}
 			writer.append("\n");
-
+			
 			resultsCount++;
 		}
-
-		return resultsCount++;
+		writer.closeFinally();
+		return "Saved " + resultsCount + " logs to gs://" + bucketName + "/" + fileKey;
 	}
 
 	/**

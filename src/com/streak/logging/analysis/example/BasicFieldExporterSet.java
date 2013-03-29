@@ -53,4 +53,10 @@ public class BasicFieldExporterSet implements BigqueryFieldExporterSet {
 	public AnalysisConstants.EnumSourceFormat getFormat() {
 		return AnalysisConstants.EnumSourceFormat.CSV;
 	}
+
+	@Override
+	public List<String> applicationVersionsToExport() {
+		return null;
+	}
+	
 }

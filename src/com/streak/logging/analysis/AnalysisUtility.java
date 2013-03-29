@@ -413,5 +413,36 @@ public class AnalysisUtility {
 		schema.setFields(schemaFields);
 	}
 	
+	public static String successJson(String message) {
+		return "{\"success\":true, \"message\":\"" + message + "\"}";
+	}
+	
+	public static BuiltinDatastoreExportConfiguration instantiateExportConfig(String builtinDatastoreExportConfig) {
+		Class exportConfigClass;
+		try {
+			exportConfigClass = Class.forName(builtinDatastoreExportConfig);
+		} catch (ClassNotFoundException e) {
+			throw new InvalidTaskParameterException("Got invalid BuiltinDatastoreExportConfig class name: " + builtinDatastoreExportConfig);
+		}
+		if (!BuiltinDatastoreExportConfiguration.class.isAssignableFrom(exportConfigClass)) {
+			throw new InvalidTaskParameterException("Got bigqueryFieldExporterSet parameter " 
+					+ builtinDatastoreExportConfig + " that doesn't implement BigqueryFieldExporterSet");
+		}
+		BuiltinDatastoreExportConfiguration exportConfig;
+		try {
+			exportConfig = (BuiltinDatastoreExportConfiguration) exportConfigClass.newInstance();
+		} catch (InstantiationException e) {
+			throw new InvalidTaskParameterException("Couldn't instantiate BigqueryFieldExporter set class " + builtinDatastoreExportConfig);
+		} catch (IllegalAccessException e) {
+			throw new InvalidTaskParameterException("BigqueryFieldExporter class " + builtinDatastoreExportConfig + " has no visible default constructor");
+		}
+		return exportConfig;
+	}
 
+	public static String getPreBackupName(long timestamp, String backupNamePrefix) {
+		if (!AnalysisUtility.areParametersValid(backupNamePrefix)) {
+			backupNamePrefix = AnalysisConstants.DEFAULT_DATASTORE_BACKUP_NAME;
+		}
+		return backupNamePrefix + timestamp + "_";
+	}
 }
