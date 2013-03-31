@@ -41,7 +41,6 @@ public class AnalysisConstants {
 	public static final String CLOUD_STORAGE_PATH_BASE_PARAM = "cloudStoragePathBase";
 	public static final String SHARD_COUNT_PARAM = "shardCount";
 	public static final String LOG_VERSION	= "logVersion";
-	public static final String JOB_ID	= "jobId";
 	public static final String UNIQUE_TASK_NAME = "uniqueTaskName";
 	public static final String SCHEMA_FORMAT = "format"; // (csv | json) csv=default 
 	public static final String LOOKBACK_PARAM = "lookBack"; // how many files intervals to go back (default 10)
@@ -53,7 +52,6 @@ public class AnalysisConstants {
 	public static final String TIMESTAMP_PARAM = "timestamp";
 	public static final String DELETE_FROM_CLOUD_STORAGE_PARAM = "deleteFromCloudStorageParam";
 	
-
 	// Amount to delay each load job to avoid getting rate limited by BigQuery
 	public static final long LOAD_DELAY_MS = 40000;
 
@@ -72,8 +70,4 @@ public class AnalysisConstants {
 		CSV,
 		JSON
 	}
-	
-	private AnalysisConstants() {	
-	}
-
 }

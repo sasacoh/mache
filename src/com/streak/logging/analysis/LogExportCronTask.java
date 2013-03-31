@@ -19,6 +19,7 @@ package com.streak.logging.analysis;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -86,7 +87,6 @@ public class LogExportCronTask extends HttpServlet {
 			logLevel = getDefaultLogLevel();
 		}
 
-		
 		String deleteFromCloudStorage = req.getParameter(AnalysisConstants.DELETE_FROM_CLOUD_STORAGE_PARAM);
 		
 		// Verify that log level is one of the enum values or ALL
@@ -94,10 +94,6 @@ public class LogExportCronTask extends HttpServlet {
 			LogLevel.valueOf(logLevel);
 		}
 
-	    if (!"ALL".equals(logLevel)) {
-			  LogLevel.valueOf(logLevel);
-	    }
-		
 		String bucketName = req.getParameter(AnalysisConstants.BUCKET_NAME_PARAM);
 		if (!AnalysisUtility.areParametersValid(bucketName)) {
 			bucketName = getDefaultBucketName();
@@ -160,7 +156,6 @@ public class LogExportCronTask extends HttpServlet {
 		for (long currentStartMs = lastEndMsSeen; currentStartMs + msPerFile <= endMs; currentStartMs += msPerFile) {
 			long tableStartMs = currentStartMs - currentStartMs % msPerTable;
 			long tableEndMs = tableStartMs + msPerTable;
-
 			String tableName = AnalysisUtility.createLogKey(schemaHash, tableStartMs, tableEndMs);
 			
 			String schemaKey = AnalysisUtility.createSchemaKey(schemaHash, currentStartMs, currentStartMs + msPerFile);
@@ -182,6 +177,10 @@ public class LogExportCronTask extends HttpServlet {
 					.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
 					.param(AnalysisConstants.BIGQUERY_TABLE_ID_PARAM, tableName)
 					.param(AnalysisConstants.LOG_LEVEL_PARAM, logLevel);
+
+			if (AnalysisUtility.areParametersValid(deleteFromCloudStorage)) {
+				taskOptions.param(AnalysisConstants.DELETE_FROM_CLOUD_STORAGE_PARAM, deleteFromCloudStorage);
+			}
 
 			String taskNameStr = "csstore_" + bucketName + "_" + currentStartMs;
 			if (!AnalysisUtility.areParametersValid(useSystemTaskName)) {

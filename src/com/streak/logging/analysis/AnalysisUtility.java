@@ -25,7 +25,6 @@ import java.nio.channels.Channels;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.NumberFormat;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
@@ -228,39 +227,6 @@ public class AnalysisUtility {
         schemaChannel.closeFinally();
     }
     
-    public static void writeJsonSchema(FileService fileService, String bucketName, String schemaKey, List<String> fieldNames, List<String> fieldTypes, List<String> fieldModes, List<String> fieldFields) throws IOException,
-    		FileNotFoundException, FinalizationException, LockException {
-        GSFileOptionsBuilder schemaOptionsBuilder = new GSFileOptionsBuilder()
-        .setBucket(bucketName)
-        .setKey(schemaKey)
-        .setAcl("project-private");
-		AppEngineFile schemaFile = fileService.createNewGSFile(schemaOptionsBuilder.build());
-		FileWriteChannel schemaChannel = fileService.openWriteChannel(schemaFile, true);
-		PrintWriter schemaWriter = new PrintWriter(Channels.newWriter(schemaChannel, "UTF8"));
-		StringBuilder sb = new StringBuilder();
-		
-		sb.append("[");
-		for (int i = 0; i < fieldNames.size(); i++) {
-			sb.append("{");
-			sb.append("\"name\":\"" + fieldNames.get(i) + "\"");
-			sb.append(",\"type\":\"" + fieldTypes.get(i) + "\"");
-			if (null != fieldModes.get(i) && !fieldModes.get(i).isEmpty()) {
-				sb.append(",\"mode\":\"" + fieldModes.get(i) + "\"");				
-			} 
-			if (null != fieldFields.get(i) && !fieldFields.get(i).isEmpty()) {
-				sb.append(",\"fields\":" + fieldFields.get(i));				
-			} 
-			sb.append("}");
-		    if (i < fieldNames.size() - 1) {
-		        sb.append(",");
-		    }
-		}
-		sb.append("]");
-		schemaWriter.print(sb);
-		schemaWriter.close();
-		schemaChannel.closeFinally();
-    }
-    
     public static void populateSchema(BigqueryFieldExporterSet exporterSet,
                                       List<String> fieldNames, List<String> fieldTypes, List<String> fieldModes, List<String> fieldFields) {
         List<BigqueryFieldExporter> exporters = exporterSet.getExporters();
@@ -291,33 +257,6 @@ public class AnalysisUtility {
             }
 
             return AnalysisUtility.escapeAndQuoteField("" + fieldValue);
-        }
-        if ("float" == type) {
-            return nf.format(fieldValue);
-        }
-        if ("integer" == type) {
-            if (fieldValue instanceof Date) {
-                return "" + ((Date) fieldValue).getTime();
-            }
-        }
-
-        return "" + fieldValue;
-    }
-    
-    public static String formatJsonValue(Object fieldValue, String type) {
-        NumberFormat nf = createFixedPointFormat();
-        if (null == fieldValue) {
-        	return null;
-        }
-        // These strings have been interned so == works for comparison
-        if ("string" == type) {
-            if (fieldValue instanceof Text) {
-            	return AnalysisUtility.escapeAndQuoteField(((Text) fieldValue).getValue());
-            }
-            return AnalysisUtility.escapeAndQuoteField("" + fieldValue);            	            
-        }
-        if ("record" == type) {
-            return AnalysisUtility.trimField("" + fieldValue);	
         }
         if ("float" == type) {
             return nf.format(fieldValue);
@@ -395,14 +334,12 @@ public class AnalysisUtility {
         return exportConfig;
     }
 
-    public static String getPostBackupName(long timestamp) {
-        SimpleDateFormat sd = new SimpleDateFormat("yyyy_MM_dd");
-        return getPreBackupName(timestamp) + sd.format(new Date(timestamp));
-    }
-
-    public static String getPreBackupName(long timestamp) {
-        return AnalysisConstants.DEFAULT_DATASTORE_BACKUP_NAME + timestamp + "_";
-    }
+	public static String getPreBackupName(long timestamp, String backupNamePrefix) {
+		if (!AnalysisUtility.areParametersValid(backupNamePrefix)) {
+			backupNamePrefix = AnalysisConstants.DEFAULT_DATASTORE_BACKUP_NAME;
+		}
+		return backupNamePrefix + timestamp + "_";
+	}
     
 	public static void loadJsonSchema(String fileUri, TableSchema schema) throws IOException  {
 		String schemaFileUri = fileUri + ".schema";
@@ -412,37 +349,65 @@ public class AnalysisUtility {
 		List<TableFieldSchema> schemaFields = mapper.readValue(schemaLine, mapper.getTypeFactory().constructCollectionType(List.class, TableFieldSchema.class));		
 		schema.setFields(schemaFields);
 	}
-	
-	public static String successJson(String message) {
-		return "{\"success\":true, \"message\":\"" + message + "\"}";
-	}
-	
-	public static BuiltinDatastoreExportConfiguration instantiateExportConfig(String builtinDatastoreExportConfig) {
-		Class exportConfigClass;
-		try {
-			exportConfigClass = Class.forName(builtinDatastoreExportConfig);
-		} catch (ClassNotFoundException e) {
-			throw new InvalidTaskParameterException("Got invalid BuiltinDatastoreExportConfig class name: " + builtinDatastoreExportConfig);
+
+	public static void writeJsonSchema(FileService fileService, String bucketName, String schemaKey, List<String> fieldNames, List<String> fieldTypes, List<String> fieldModes, List<String> fieldFields) throws IOException,
+			FileNotFoundException, FinalizationException, LockException {
+		GSFileOptionsBuilder schemaOptionsBuilder = new GSFileOptionsBuilder()
+				.setBucket(bucketName)
+				.setKey(schemaKey)
+				.setAcl("project-private");
+		AppEngineFile schemaFile = fileService.createNewGSFile(schemaOptionsBuilder.build());
+		FileWriteChannel schemaChannel = fileService.openWriteChannel(schemaFile, true);
+		PrintWriter schemaWriter = new PrintWriter(Channels.newWriter(schemaChannel, "UTF8"));
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("[");
+		for (int i = 0; i < fieldNames.size(); i++) {
+			sb.append("{");
+			sb.append("\"name\":\"" + fieldNames.get(i) + "\"");
+			sb.append(",\"type\":\"" + fieldTypes.get(i) + "\"");
+			if (null != fieldModes.get(i) && !fieldModes.get(i).isEmpty()) {
+				sb.append(",\"mode\":\"" + fieldModes.get(i) + "\"");
+			}
+			if (null != fieldFields.get(i) && !fieldFields.get(i).isEmpty()) {
+				sb.append(",\"fields\":" + fieldFields.get(i));
+			}
+			sb.append("}");
+			if (i < fieldNames.size() - 1) {
+				sb.append(",");
+			}
 		}
-		if (!BuiltinDatastoreExportConfiguration.class.isAssignableFrom(exportConfigClass)) {
-			throw new InvalidTaskParameterException("Got bigqueryFieldExporterSet parameter " 
-					+ builtinDatastoreExportConfig + " that doesn't implement BigqueryFieldExporterSet");
-		}
-		BuiltinDatastoreExportConfiguration exportConfig;
-		try {
-			exportConfig = (BuiltinDatastoreExportConfiguration) exportConfigClass.newInstance();
-		} catch (InstantiationException e) {
-			throw new InvalidTaskParameterException("Couldn't instantiate BigqueryFieldExporter set class " + builtinDatastoreExportConfig);
-		} catch (IllegalAccessException e) {
-			throw new InvalidTaskParameterException("BigqueryFieldExporter class " + builtinDatastoreExportConfig + " has no visible default constructor");
-		}
-		return exportConfig;
+		sb.append("]");
+		schemaWriter.print(sb);
+		schemaWriter.close();
+		schemaChannel.closeFinally();
 	}
 
-	public static String getPreBackupName(long timestamp, String backupNamePrefix) {
-		if (!AnalysisUtility.areParametersValid(backupNamePrefix)) {
-			backupNamePrefix = AnalysisConstants.DEFAULT_DATASTORE_BACKUP_NAME;
+	public static String formatJsonValue(Object fieldValue, String type) {
+		NumberFormat nf = createFixedPointFormat();
+		if (null == fieldValue) {
+			return null;
 		}
-		return backupNamePrefix + timestamp + "_";
+		// These strings have been interned so == works for comparison
+		if ("string" == type) {
+			if (fieldValue instanceof Text) {
+				return AnalysisUtility.escapeAndQuoteField(((Text) fieldValue).getValue());
+			}
+			return AnalysisUtility.escapeAndQuoteField("" + fieldValue);
+		}
+		if ("record" == type) {
+			return AnalysisUtility.trimField("" + fieldValue);
+		}
+		if ("float" == type) {
+			return nf.format(fieldValue);
+		}
+		if ("integer" == type) {
+			if (fieldValue instanceof Date) {
+				return "" + ((Date) fieldValue).getTime();
+			}
+		}
+
+		return "" + fieldValue;
 	}
+
 }

@@ -35,7 +35,6 @@ public interface BigqueryFieldExporter {
 	 * to respond to later {@link #getField(String) getField} calls.
 	 * 
 	 * @param log entry to be processed
-	 * @return number of rows (default = 1)
 	 */
 	public void processLog(RequestLogs log);
 	
