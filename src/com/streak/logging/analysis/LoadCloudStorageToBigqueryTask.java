@@ -101,6 +101,33 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 			String schemaHash = AnalysisUtility.computeSchemaHash(exporterSet);
 			AnalysisUtility.fetchCloudStorageLogUris(
 					bucketName, schemaHash, startMs, endMs, requestFactory, urisToProcess, false);
+
+			if (urisToProcess.isEmpty()) {
+				// By Spletart: Could be here - why don't retry!!!
+				int count = 0;
+				long currentTime = System.currentTimeMillis();
+				Long nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
+				String retry = req.getParameter("retry");
+				if (retry != null && !retry.isEmpty())
+				{
+					// OK, I give up now...
+					logger.warning("No uris to process from fetchCloudStorageUris. Giving up.");
+					return;
+				}
+				// retrying...
+				logger.warning("No uris to process from fetchCloudStorageUris - will retry at " + nextBigQueryJobTime);
+				Queue taskQueue = QueueFactory.getQueue(queueName);
+				taskQueue.add(
+						Builder.withUrl(
+								AnalysisUtility.getRequestBaseName(req) +
+										"/loadCloudStorageToBigquery?" + req.getQueryString() + "&retry=" + count++)
+								.method(Method.GET)
+								.etaMillis(nextBigQueryJobTime));
+				resp.getWriter().println("No uris to process from fetchCloudStorageUris - will retry at " + nextBigQueryJobTime);
+
+				return;
+			}
+
 			schemaBaseUri = urisToProcess.get(0);
 			// Datastore
 		} else {
