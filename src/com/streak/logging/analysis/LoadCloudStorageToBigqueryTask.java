@@ -25,8 +25,6 @@ import com.google.api.client.json.jackson.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.*;
-import com.google.appengine.api.memcache.MemcacheService;
-import com.google.appengine.api.memcache.MemcacheServiceFactory;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
@@ -37,6 +35,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -53,32 +52,34 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 		String bigqueryProjectId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_PROJECT_ID_PARAM);
 		String bigqueryDatasetId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_DATASET_ID_PARAM);
 		String bigqueryTableId = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BIGQUERY_TABLE_ID_PARAM);
-
-		MemcacheService memcache = MemcacheServiceFactory.getMemcacheService(AnalysisConstants.MEMCACHE_NAMESPACE);
-		Long nextBigQueryJobTime =
-				(Long) memcache.increment(
-						AnalysisConstants.LAST_BIGQUERY_JOB_TIME, AnalysisConstants.LOAD_DELAY_MS, System.currentTimeMillis());
-
-		long currentTime = System.currentTimeMillis();
-
-		// The task queue has waited a long time to run us. Go ahead and reset the last job time
-		// to prevent a race.
-		if (currentTime > nextBigQueryJobTime + AnalysisConstants.LOAD_DELAY_MS / 2) {
-			memcache.put(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, currentTime);
-			nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
-		}
-		if (currentTime < nextBigQueryJobTime) {
-			memcache.increment(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, -AnalysisConstants.LOAD_DELAY_MS);
-			Queue taskQueue = QueueFactory.getQueue(queueName);
-			taskQueue.add(
-					Builder.withUrl(
-							AnalysisUtility.getRequestBaseName(req) +
-									"/loadCloudStorageToBigquery?" + req.getQueryString())
-							.method(Method.GET)
-							.etaMillis(nextBigQueryJobTime));
-			resp.getWriter().println("Rate limiting BigQuery load job - will retry at " + nextBigQueryJobTime);
-			return;
-		}
+// Do not use rate limiting...
+//		MemcacheService memcache = MemcacheServiceFactory.getMemcacheService(AnalysisConstants.MEMCACHE_NAMESPACE);
+//		Long nextBigQueryJobTime =
+//				(Long) memcache.increment(
+//						AnalysisConstants.LAST_BIGQUERY_JOB_TIME, AnalysisConstants.LOAD_DELAY_MS, System.currentTimeMillis());
+//
+//		long currentTime = System.currentTimeMillis();
+//
+//		// The task queue has waited a long time to run us. Go ahead and reset the last job time
+//		// to prevent a race.
+//		if (currentTime > nextBigQueryJobTime + AnalysisConstants.LOAD_DELAY_MS / 2) {
+//			memcache.put(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, currentTime);
+//			nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
+//		}
+//		if (currentTime < nextBigQueryJobTime) {
+//			memcache.increment(AnalysisConstants.LAST_BIGQUERY_JOB_TIME, -AnalysisConstants.LOAD_DELAY_MS);
+//			Queue taskQueue = QueueFactory.getQueue(queueName);
+//			taskQueue.add(
+//					Builder.withUrl(
+//							AnalysisUtility.getRequestBaseName(req) +
+//									"/loadCloudStorageToBigquery?" + req.getQueryString())
+//							.method(Method.GET)
+//							.etaMillis(nextBigQueryJobTime));
+//
+//			logger.info("Rate limiting BigQuery load job - will retry at " + nextBigQueryJobTime);
+//			resp.getWriter().println("Rate limiting BigQuery load job - will retry at " + nextBigQueryJobTime);
+//			return;
+//		}
 
 		String bucketName = AnalysisUtility.extractParameterOrThrow(req, AnalysisConstants.BUCKET_NAME_PARAM);
 
@@ -176,26 +177,34 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 			job.setId(jobId); // by Spletart Just in case, must be [a-zA-Z][\w]{0,1023}. Set the Id to disallow duplicates...http://stackoverflow.com/questions/11071916/bigquery-double-imports
 		}
 
-		Insert insert = bigquery.jobs().insert(bigqueryProjectId, job);
-
-		// TODO(frew): Not sure this is necessary, but monkey-see'ing the example code
 		logger.info("BQ job config: " + loadConfig);
-		insert.setProjectId(bigqueryProjectId);
-		JobReference ref = insert.execute().getJobReference();
-		resp.getWriter().println("Successfully started job " + ref);
-		logger.info("Import to BQ job started: " + ref.getJobId());
 
-		String shouldDelete = req.getParameter(AnalysisConstants.DELETE_FROM_CLOUD_STORAGE_PARAM);
-		if (AnalysisUtility.areParametersValid(shouldDelete)) {
-			Queue taskQueue = QueueFactory.getQueue(queueName);
-			taskQueue.add(
-					Builder.withUrl(
-							AnalysisUtility.getRequestBaseName(req) + "/deleteCompletedCloudStorageFilesTask")
-							.method(Method.GET)
-							.param(AnalysisConstants.BIGQUERY_JOB_ID_PARAM, ref.getJobId())
-							.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
-							.param(AnalysisConstants.BIGQUERY_PROJECT_ID_PARAM, bigqueryProjectId));
+		try {
+			Insert insert = bigquery.jobs().insert(bigqueryProjectId, job);
+
+			// TODO(frew): Not sure this is necessary, but monkey-see'ing the example code
+			insert.setProjectId(bigqueryProjectId);
+			JobReference ref = insert.execute().getJobReference();
+
+			resp.getWriter().println("Successfully started job " + ref);
+			logger.info("Import to BQ job started: " + ref.getJobId());
+
+			String shouldDelete = req.getParameter(AnalysisConstants.DELETE_FROM_CLOUD_STORAGE_PARAM);
+			if (AnalysisUtility.areParametersValid(shouldDelete)) {
+				Queue taskQueue = QueueFactory.getQueue(queueName);
+				taskQueue.add(
+						Builder.withUrl(
+								AnalysisUtility.getRequestBaseName(req) + "/deleteCompletedCloudStorageFilesTask")
+								.method(Method.GET)
+								.param(AnalysisConstants.BIGQUERY_JOB_ID_PARAM, ref.getJobId())
+								.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
+								.param(AnalysisConstants.BIGQUERY_PROJECT_ID_PARAM, bigqueryProjectId));
+			}
+		} catch (SocketTimeoutException e) {
+			logger.warning("Import job error: " + e.getMessage());
+			// prevent task restart / duplicates
 		}
+
 	}
 
 	private void loadSchema(String fileUri, TableSchema schema) throws IOException {

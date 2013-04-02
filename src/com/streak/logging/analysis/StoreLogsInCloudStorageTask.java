@@ -83,6 +83,8 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 			logger.info("Task name: " + taskNameStr);
 		}
 		try {
+			// set task retry options to 0 to prevent duplicates...
+			to.retryOptions(RetryOptions.Builder.withTaskRetryLimit(0));
 			taskQueue.add(to);
 		} catch (TaskAlreadyExistsException e) {
 			// just error log to prevent task restarts
