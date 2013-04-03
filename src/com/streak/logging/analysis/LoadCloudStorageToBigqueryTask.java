@@ -35,7 +35,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
@@ -108,8 +107,7 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 				long currentTime = System.currentTimeMillis();
 				Long nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
 				String retry = req.getParameter("retry");
-				if (retry != null && !retry.isEmpty())
-				{
+				if (retry != null && !retry.isEmpty()) {
 					// OK, I give up now...
 					logger.warning("No uris to process from fetchCloudStorageUris. Giving up.");
 					return;
@@ -227,9 +225,11 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 								.param(AnalysisConstants.QUEUE_NAME_PARAM, queueName)
 								.param(AnalysisConstants.BIGQUERY_PROJECT_ID_PARAM, bigqueryProjectId));
 			}
-		} catch (SocketTimeoutException e) {
+		} catch (Exception e) {
+			// by sasa: catch any exception to prevent duplicates (ugly but...) - better gaps than dups!!!
+			// There were at least 2 cases when exception restarted the task but import was already completed on BQ causing dups!
+			// Another mystery: why GAE task is restarted despite maxretrycount is set to 0???
 			logger.warning("Import job error: " + e.getMessage());
-			// prevent task restart / duplicates
 		}
 
 	}
