@@ -108,17 +108,25 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 				Long nextBigQueryJobTime = currentTime + AnalysisConstants.LOAD_DELAY_MS;
 				String retry = req.getParameter("retry");
 				if (retry != null && !retry.isEmpty()) {
-					// OK, I give up now...
-					logger.warning("No uris to process from fetchCloudStorageUris. Giving up.");
-					return;
+					try {
+						count = Integer.parseInt(retry);
+						if (count >= 3) {
+							// OK, I give up now...
+							logger.warning("No uris to process from fetchCloudStorageUris. Retry limit hit '" + count + "'. Giving up.");
+							return;
+						}
+					} catch (NumberFormatException e) {
+						logger.warning("No uris to process from fetchCloudStorageUris. 'NumberFormatException' Giving up.");
+						return;
+					}
 				}
 				// retrying...
-				logger.warning("No uris to process from fetchCloudStorageUris - will retry at " + nextBigQueryJobTime);
+				logger.warning("No uris to process from fetchCloudStorageUris. Retry count: '" + count + "' - will retry at " + nextBigQueryJobTime);
 				Queue taskQueue = QueueFactory.getQueue(queueName);
 				taskQueue.add(
 						Builder.withUrl(
 								AnalysisUtility.getRequestBaseName(req) +
-										"/loadCloudStorageToBigquery?" + req.getQueryString() + "&retry=" + count++)
+										"/loadCloudStorageToBigquery?" + req.getQueryString() + "&retry=" + (count++))
 								.method(Method.GET)
 								.etaMillis(nextBigQueryJobTime));
 				resp.getWriter().println("No uris to process from fetchCloudStorageUris - will retry at " + nextBigQueryJobTime);

@@ -40,7 +40,7 @@ public class FancyFileWriter {
 	public FancyFileWriter(String bucketName, String fileKey) throws IOException {
 		lastOpenMillis = System.currentTimeMillis();
 		
-		log.warning("Creating file " + bucketName + ":" + fileKey);
+		log.info("Creating file " + bucketName + ":" + fileKey);
 		GSFileOptionsBuilder optionsBuilder = new GSFileOptionsBuilder()
 			.setBucket(bucketName)
 			.setKey(fileKey)
@@ -50,7 +50,7 @@ public class FancyFileWriter {
 	}
 	
 	public FancyFileWriter(String writablePath) throws IOException {
-		log.warning("Reopening file "+ writablePath);
+		log.info("Reopening file "+ writablePath);
 		logsFile = new AppEngineFile(writablePath);
 		init();
 	}
@@ -80,7 +80,7 @@ public class FancyFileWriter {
 	}
 	
 	public void closeTemporarily() throws IOException {
-		log.warning("Closing file " + logsFile.getFullPath() + " temporarily " + closed);
+		log.info("Closing file " + logsFile.getFullPath() + " temporarily " + closed);
 		if (closed) {
 			return;
 		}
@@ -94,7 +94,7 @@ public class FancyFileWriter {
 	}
 	
 	public void closeFinally() throws IOException {
-		log.warning("Closing file " + logsFile.getFullPath() + " finally " + closed);
+		log.info("Closing file " + logsFile.getFullPath() + " finally " + closed);
 		if (closed) {
 			return;
 		}
