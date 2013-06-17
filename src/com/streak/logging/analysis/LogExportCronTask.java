@@ -38,6 +38,7 @@ import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
+import com.google.appengine.api.utils.SystemProperty;
 
 public class LogExportCronTask extends HttpServlet {
 	private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
@@ -82,6 +83,11 @@ public class LogExportCronTask extends HttpServlet {
 			startMs = Long.parseLong(startMsStr);
 		}
 		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
+        // check default/current running keyword
+        if (null != logVersion && logVersion.equals("__default__")) {
+            String appVer = SystemProperty.applicationVersion.get();
+            logVersion = appVer.substring(0, appVer.lastIndexOf("."));
+        }
 		String logLevel = req.getParameter(AnalysisConstants.LOG_LEVEL_PARAM);
 		if (!AnalysisUtility.areParametersValid(logLevel)) {
 			logLevel = getDefaultLogLevel();

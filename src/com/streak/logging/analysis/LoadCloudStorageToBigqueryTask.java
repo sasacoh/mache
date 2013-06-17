@@ -120,10 +120,10 @@ public class LoadCloudStorageToBigqueryTask extends HttpServlet {
 						logger.warning("No uris to process from fetchCloudStorageUris. 'NumberFormatException' Giving up.");
 						return;
 					}
-                    queryString = queryString.replaceAll("&retry=\\d", "&retry=" + (count++));
+                    queryString = queryString.replaceAll("retry=\\d", "retry=" + (count + 1));
 				}
                 else {
-                    queryString += "&retry=" + count++;
+                    queryString += "&retry=" + (count + 1);
                 }
 				// retrying...
 				logger.warning("No uris to process from fetchCloudStorageUris. Retry count: '" + count + "' - will retry at " + nextBigQueryJobTime);
