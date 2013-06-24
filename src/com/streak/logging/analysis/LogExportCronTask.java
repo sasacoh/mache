@@ -31,6 +31,8 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.appengine.api.files.FileService;
 import com.google.appengine.api.files.FileServiceFactory;
+import com.google.appengine.api.labs.servers.ServersService;
+import com.google.appengine.api.labs.servers.ServersServiceFactory;
 import com.google.appengine.api.log.LogService.LogLevel;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
@@ -38,7 +40,6 @@ import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TaskOptions.Builder;
 import com.google.appengine.api.taskqueue.TaskOptions.Method;
-import com.google.appengine.api.utils.SystemProperty;
 
 public class LogExportCronTask extends HttpServlet {
 	private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
@@ -82,12 +83,19 @@ public class LogExportCronTask extends HttpServlet {
 		if (AnalysisUtility.areParametersValid(startMsStr)) {
 			startMs = Long.parseLong(startMsStr);
 		}
+		String delayStr = AnalysisUtility.extractParameter(req, AnalysisConstants.TASK_DELAY);
+		int taskDelay = 15000; // 15s delay
+		if (AnalysisUtility.areParametersValid(delayStr)) {
+			taskDelay = Integer.parseInt(delayStr);
+		}
 		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
-        // check default/current running keyword
-        if (null != logVersion && logVersion.equals("__default__")) {
-            String appVer = SystemProperty.applicationVersion.get();
-            logVersion = appVer.substring(0, appVer.lastIndexOf("."));
+        // check default/current version
+//		logger.info("Log version: '" + logVersion + "'");
+		if (null != logVersion && logVersion.equals("__default__")) {
+			ServersService ssf = ServersServiceFactory.getServersService();
+			logVersion = ssf.getDefaultVersion("");
         }
+//		logger.info("Log version (after): '" + logVersion + "'");
 		String logLevel = req.getParameter(AnalysisConstants.LOG_LEVEL_PARAM);
 		if (!AnalysisUtility.areParametersValid(logLevel)) {
 			logLevel = getDefaultLogLevel();
@@ -186,6 +194,9 @@ public class LogExportCronTask extends HttpServlet {
 
 			if (AnalysisUtility.areParametersValid(deleteFromCloudStorage)) {
 				taskOptions.param(AnalysisConstants.DELETE_FROM_CLOUD_STORAGE_PARAM, deleteFromCloudStorage);
+			}
+			if (taskDelay > 0) {
+				taskOptions.countdownMillis(taskDelay);
 			}
 
 			String taskNameStr = "csstore_" + bucketName + "_" + currentStartMs;
