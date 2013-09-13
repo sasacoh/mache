@@ -31,8 +31,8 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.appengine.api.files.FileService;
 import com.google.appengine.api.files.FileServiceFactory;
-import com.google.appengine.api.labs.servers.ServersService;
-import com.google.appengine.api.labs.servers.ServersServiceFactory;
+import com.google.appengine.api.labs.modules.ModulesService;
+import com.google.appengine.api.labs.modules.ModulesServiceFactory;
 import com.google.appengine.api.log.LogService.LogLevel;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
@@ -88,14 +88,19 @@ public class LogExportCronTask extends HttpServlet {
 		if (AnalysisUtility.areParametersValid(delayStr)) {
 			taskDelay = Integer.parseInt(delayStr);
 		}
-		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
-        // check default/current version
-//		logger.info("Log version: '" + logVersion + "'");
-		if (null != logVersion && logVersion.equals("__default__")) {
-			ServersService ssf = ServersServiceFactory.getServersService();
-			logVersion = ssf.getDefaultVersion("");
+
+		String logModule = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_MODULE);
+        if (!AnalysisUtility.areParametersValid(logModule)) {
+            logModule = getDefaultLogModule();
         }
-//		logger.info("Log version (after): '" + logVersion + "'");
+
+        String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
+        // check default/current version
+		logger.info("Log version: '" + logVersion + "'");
+		if (null != logVersion && logVersion.equals("__default__")) {
+            logVersion = getDefaultModuleVersion(logModule);
+        }
+		logger.info("Log version (after): '" + logVersion + "'");
 		String logLevel = req.getParameter(AnalysisConstants.LOG_LEVEL_PARAM);
 		if (!AnalysisUtility.areParametersValid(logLevel)) {
 			logLevel = getDefaultLogLevel();
@@ -211,6 +216,9 @@ public class LogExportCronTask extends HttpServlet {
 			if (logVersion != null && !logVersion.isEmpty()) {
 				taskOptions.param(AnalysisConstants.LOG_VERSION, logVersion);
 			}
+			if (logModule != null && !logModule.isEmpty()) {
+				taskOptions.param(AnalysisConstants.LOG_MODULE, logModule);
+			}
 			if (maxErrorRecords != null && !maxErrorRecords.isEmpty()) {
 				taskOptions.param(AnalysisConstants.MAX_ERRORS, maxErrorRecords);
 			}
@@ -226,7 +234,7 @@ public class LogExportCronTask extends HttpServlet {
 		resp.getWriter().println("Successfully started " + taskCount + " tasks");
 		logger.info("Successfully started " + taskCount + " tasks");
 	}
-	
+
 	protected String getDefaultBucketName() {
 		return "logs";
 	}
@@ -250,4 +258,17 @@ public class LogExportCronTask extends HttpServlet {
 	protected String getDefaultLogLevel() {
 		return "ALL";
 	}
+
+	protected String getDefaultLogModule() {
+        ModulesService modulesApi = ModulesServiceFactory.getModulesService();
+        return modulesApi.getCurrentModule();
+	}
+
+    protected String getDefaultModuleVersion(String logModule) {
+        if (null == logModule) {
+            return "";
+        }
+        ModulesService modulesApi = ModulesServiceFactory.getModulesService();
+        return modulesApi.getDefaultVersion(logModule);
+    }
 }

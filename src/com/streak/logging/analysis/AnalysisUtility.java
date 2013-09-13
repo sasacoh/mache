@@ -25,6 +25,7 @@ import java.nio.channels.Channels;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -36,7 +37,8 @@ import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
-import org.codehaus.jackson.map.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
@@ -345,10 +347,11 @@ public class AnalysisUtility {
 		String schemaFileUri = fileUri + ".schema";
 		String schemaFileName = "/gs/" + schemaFileUri.substring(schemaFileUri.indexOf("//") + 2);		
 		String schemaLine = AnalysisUtility.loadSchemaStr(schemaFileName);
-		ObjectMapper mapper = new ObjectMapper();
-		List<TableFieldSchema> schemaFields = mapper.readValue(schemaLine, mapper.getTypeFactory().constructCollectionType(List.class, TableFieldSchema.class));		
-		schema.setFields(schemaFields);
-	}
+//		ObjectMapper mapper = new ObjectMapper();
+//		List<TableFieldSchema> schemaFields = mapper.readValue(schemaLine, mapper.getTypeFactory().constructCollectionType(List.class, TableFieldSchema.class));
+		List<TableFieldSchema> schemaFields = new Gson().fromJson(schemaLine, new TypeToken<ArrayList<TableFieldSchema>>() {}.getType());
+        schema.setFields(schemaFields);
+    }
 
 	public static void writeJsonSchema(FileService fileService, String bucketName, String schemaKey, List<String> fieldNames, List<String> fieldTypes, List<String> fieldModes, List<String> fieldFields) throws IOException,
 			FileNotFoundException, FinalizationException, LockException {

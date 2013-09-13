@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
+import com.google.appengine.repackaged.com.google.common.base.Pair;
 
 public class StoreLogsInCloudStorageTask extends HttpServlet {
 	private static final Logger logger = Logger.getLogger(StoreLogsInCloudStorageTask.class.getName());
@@ -67,10 +68,12 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		AnalysisUtility.populateSchema(exporterSet, fieldNames, fieldTypes, fieldModes, fieldFields);
 
 		String logVersion = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_VERSION);
+		String logModule = AnalysisUtility.extractParameter(req, AnalysisConstants.LOG_MODULE);
+
 		String bigqueryDatasetId = req.getParameter(AnalysisConstants.BIGQUERY_DATASET_ID_PARAM);
 		String useSystemTaskName = req.getParameter(AnalysisConstants.UNIQUE_TASK_NAME); // back door to repeat task
 
-		String respStr = generateExportables(startMs, endMs, bucketName, schemaHash, exporterSet, fieldNames, fieldTypes, logLevel, logVersion);
+		String respStr = generateExportables(startMs, endMs, bucketName, schemaHash, exporterSet, fieldNames, fieldTypes, logLevel, logVersion, logModule);
 		Queue taskQueue = QueueFactory.getQueue(queueName);
 		TaskOptions to = Builder.withUrl(AnalysisUtility.getRequestBaseName(req) + "/loadCloudStorageToBigquery?" + req.getQueryString())
 				.method(Method.GET);
@@ -94,7 +97,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		resp.getWriter().println(respStr);
 	}
 
-	protected String generateExportables(long startMs, long endMs, String bucketName, String schemaHash, BigqueryFieldExporterSet exporterSet, List<String> fieldNames, List<String> fieldTypes, LogLevel logLevel, String version) throws IOException {
+	protected String generateExportables(long startMs, long endMs, String bucketName, String schemaHash, BigqueryFieldExporterSet exporterSet, List<String> fieldNames, List<String> fieldTypes, LogLevel logLevel, String version, String module) throws IOException {
 		List<BigqueryFieldExporter> exporters = exporterSet.getExporters();
 
 		LogService ls = LogServiceFactory.getLogService();
@@ -111,14 +114,31 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 		if (appVersions != null && appVersions.size() > 0) {
 			lq = lq.majorVersionIds(appVersions);
 		}
-		String [] versions = version != null ? version.split(",") : null;
-		if (version != null && versions.length > 0) {
-			lq = lq.majorVersionIds(Arrays.asList(versions));
-		}
+
+		String [] modules = module != null ? module.split(",") : null;
+        String [] versions = version != null ? version.split(",") : null;
+        if (null != module && !module.isEmpty()) {
+
+            List<Pair<String,String>> mvs = new ArrayList<Pair<String, String>>();
+            for (String mod : modules) {
+                for (String ver : versions) {
+                    Pair<String,String> pair = new Pair<String,String>(mod,ver);
+                    mvs.add(pair);
+                }
+            }
+            lq = lq.moduleVersions(mvs);
+        }
+        else {
+            // set version(s) for current request's module
+            if (version != null && versions.length > 0) {
+                lq = lq.majorVersionIds(Arrays.asList(versions));
+            }
+        }
+        logger.info("Fetching logs for modules/versions: " + lq.getModuleVersions());
 
 		String fileKey = AnalysisUtility.createLogKey(schemaHash, startMs, endMs);
 
-		FancyFileWriter writer = new FancyFileWriter(bucketName, fileKey);
+		GcsFileWriter writer = new GcsFileWriter(bucketName, fileKey);
 		Iterable<RequestLogs> logs = ls.fetch(lq);
 
 		AnalysisConstants.EnumSourceFormat format = exporterSet.getFormat();
@@ -150,7 +170,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 
 	protected int writeCsvRecords(BigqueryFieldExporterSet exporterSet,
 	                              List<BigqueryFieldExporter> exporters, RequestLogs log,
-	                              FancyFileWriter writer, List<String> fieldNames,
+	                              GcsFileWriter writer, List<String> fieldNames,
 	                              List<String> fieldTypes) throws IOException {
 
 		int resultsCount = 0;
@@ -196,7 +216,7 @@ public class StoreLogsInCloudStorageTask extends HttpServlet {
 	 */
 	private int writeJsonRecords(BigqueryFieldExporterSet exporterSet,
 	                             List<BigqueryFieldExporter> exporters, RequestLogs log,
-	                             FancyFileWriter writer, List<String> fieldNames,
+	                             GcsFileWriter writer, List<String> fieldNames,
 	                             List<String> fieldTypes) throws IOException {
 
 		int resultsCount = 0;

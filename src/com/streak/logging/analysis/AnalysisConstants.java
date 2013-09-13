@@ -41,6 +41,7 @@ public class AnalysisConstants {
 	public static final String CLOUD_STORAGE_PATH_BASE_PARAM = "cloudStoragePathBase";
 	public static final String SHARD_COUNT_PARAM = "shardCount";
 	public static final String LOG_VERSION	= "logVersion";
+	public static final String LOG_MODULE	= "logModule";
 	public static final String TASK_DELAY	= "taskDelay";
 	public static final String UNIQUE_TASK_NAME = "uniqueTaskName";
 	public static final String SCHEMA_FORMAT = "format"; // (csv | json) csv=default 

@@ -16,35 +16,48 @@
 
 package com.streak.logging.analysis;
 
-import java.io.IOException;
-import java.util.List;
-
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import com.google.api.client.googleapis.extensions.appengine.auth.oauth2.AppIdentityCredential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
-import com.google.api.client.json.jackson.JacksonFactory;
+import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobList;
 import com.google.api.services.bigquery.model.ProjectList;
 import com.google.api.services.bigquery.model.ProjectList.Projects;
 
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.List;
+import java.util.logging.Logger;
+
 /**
  * Diagnostic servlet that lists visible BigQuery projects and jobs.
  */
 public class BigqueryStatusServlet extends HttpServlet {
 	private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
-	private static final JsonFactory JSON_FACTORY = new JacksonFactory();
+	private static final JsonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+	private static final Logger logger = Logger.getLogger(BigqueryStatusServlet.class.getName());
+
 
 	public void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		resp.setContentType("text/plain");
+
+		String pageToken = req.getParameter("page");
+		String maxRes = req.getParameter("max");
+		long maxResults = 200L;
+		try {
+			maxResults = Long.parseLong(maxRes);
+		} catch (NumberFormatException e) {
+			//ignore...
+		}
+		logger.info("Max results set: " + maxResults + ", " + maxRes);
+
 		AppIdentityCredential credential = new AppIdentityCredential(AnalysisConstants.SCOPES);
-		Bigquery bigquery = new Bigquery.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).setApplicationName("Streak Logs").build();
+		Bigquery bigquery = new Bigquery.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential).setApplicationName("Idd Logs").build();
 
 		Bigquery.Projects.List projectRequest = bigquery.projects().list();
 		ProjectList projectResponse = projectRequest.execute();
@@ -53,9 +66,13 @@ public class BigqueryStatusServlet extends HttpServlet {
 		if (projectResponse.getProjects() != null) {
 			for (Projects project : projectResponse.getProjects()) {
 				Bigquery.Jobs.List jobsRequest = bigquery.jobs().list(project.getId());
-				jobsRequest.setMaxResults(200L);
+				jobsRequest.setMaxResults(maxResults);
+				if (null != pageToken) {
+					jobsRequest.setPageToken(pageToken);
+				}
 				JobList jobsResponse = jobsRequest.execute();
 				List<JobList.Jobs> jobs = jobsResponse.getJobs();
+				resp.getWriter().println("=== Page token: " + jobsResponse.getNextPageToken() + " ===");
 				resp.getWriter().println("=== Recent jobs for " + project.getId() + " ===");
 				if (jobs != null) {
 					for (JobList.Jobs job : jobs) {
@@ -66,6 +83,7 @@ public class BigqueryStatusServlet extends HttpServlet {
 						Job jobResponse = jobRequest.execute();
 						resp.getWriter().println("Full job description:");
 						resp.getWriter().println(jobResponse.toPrettyString());
+						resp.getWriter().flush();
 					}
 				}
 			}
